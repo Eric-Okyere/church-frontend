@@ -38,6 +38,9 @@ function AdminShell({ children }: { children: React.ReactNode }) {
               <Link href="/scan" className="px-3 py-2 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft">
                 Scan / Check-in
               </Link>
+              <Link href="/admin/venue-qr" className="px-3 py-2 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft">
+                Venue QR
+              </Link>
             </nav>
           </div>
           <div className="flex items-center gap-3">
@@ -59,6 +62,9 @@ function AdminShell({ children }: { children: React.ReactNode }) {
           </Link>
           <Link href="/scan" className="px-3 py-1.5 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft whitespace-nowrap">
             Scan
+          </Link>
+          <Link href="/admin/venue-qr" className="px-3 py-1.5 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft whitespace-nowrap">
+            Venue QR
           </Link>
         </nav>
       </header>
