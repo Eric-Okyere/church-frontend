@@ -1,0 +1,82 @@
+"use client";
+
+import { use, useEffect, useState } from "react";
+import { API_URL } from "@/lib/api";
+import { formatTime } from "@/lib/utils";
+
+type CheckInResult =
+  | { ok: true; alreadyIn: boolean; memberName: string; serviceName: string }
+  | { ok: false; reason: "no_active_service" | "invalid_token" | "inactive_member" };
+
+export default function SelfCheckInPage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = use(params);
+  const [result, setResult] = useState<CheckInResult | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API_URL}/api/attendance/checkin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setResult(data);
+      })
+      .catch(() => {
+        if (!cancelled) setResult({ ok: false, reason: "invalid_token" });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const now = formatTime(new Date().toISOString());
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4 bg-background">
+      <div className="card p-8 max-w-sm w-full text-center">
+        {!result && <p className="text-sm text-muted">Checking you in…</p>}
+
+        {result?.ok && (
+          <>
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl"
+              style={{ background: "var(--success-soft)", color: "var(--success)" }}
+            >
+              ✓
+            </div>
+            <h1 className="text-xl font-semibold text-foreground">
+              {result.alreadyIn ? "Already checked in" : "You're checked in!"}
+            </h1>
+            <p className="text-muted text-sm mt-2">
+              {result.memberName} · {result.serviceName}
+            </p>
+            <p className="text-xs text-muted mt-1">{now}</p>
+          </>
+        )}
+
+        {result && !result.ok && (
+          <>
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl"
+              style={{ background: "var(--warning-soft)", color: "var(--warning)" }}
+            >
+              !
+            </div>
+            <h1 className="text-xl font-semibold text-foreground">
+              {result.reason === "no_active_service" && "No service is active right now"}
+              {result.reason === "invalid_token" && "QR code not recognized"}
+              {result.reason === "inactive_member" && "This membership is inactive"}
+            </h1>
+            <p className="text-muted text-sm mt-2">
+              {result.reason === "no_active_service"
+                ? "Please check in with an usher at the entrance instead."
+                : "Please see an usher at the entrance for help."}
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
