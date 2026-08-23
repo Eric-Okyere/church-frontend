@@ -22,7 +22,12 @@ export default function Scanner() {
 
   useEffect(() => {
     return () => {
-      scannerRef.current?.stop().catch(() => {});
+      // Stop the camera stream and let the library remove its own <video>
+      // element before this component's own DOM tree gets torn down.
+      scannerRef.current
+        ?.stop()
+        .catch(() => {})
+        .finally(() => scannerRef.current?.clear());
     };
   }, []);
 
@@ -109,12 +114,16 @@ export default function Scanner() {
       {error && <p className="text-sm text-danger bg-danger-soft rounded-lg px-3 py-2 mb-3">{error}</p>}
 
       <div
-        id={SCANNER_ID}
-        className="rounded-xl overflow-hidden bg-black/5 border border-border"
+        className="relative rounded-xl overflow-hidden bg-black/5 border border-border"
         style={{ minHeight: running ? undefined : 220 }}
       >
+        {/* html5-qrcode injects a <video> here directly via the DOM, outside
+            React's control. This div must never have React-rendered children —
+            otherwise React's reconciler and the library fight over the same
+            nodes and crash with "Failed to execute 'removeChild'". */}
+        <div id={SCANNER_ID} className="w-full" />
         {!running && (
-          <div className="h-56 flex items-center justify-center text-sm text-muted px-6 text-center">
+          <div className="absolute inset-0 h-56 flex items-center justify-center text-sm text-muted px-6 text-center pointer-events-none">
             Point a phone or tablet camera here at each member&apos;s personal QR code to check them in instantly.
           </div>
         )}
