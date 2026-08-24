@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { formatDate, formatTime } from "@/lib/utils";
 import EditMemberForm from "./EditMemberForm";
+import ChildrenSection from "./ChildrenSection";
 
 type Member = {
   id: string;
@@ -11,6 +12,13 @@ type Member = {
   phone: string | null;
   email: string | null;
   active: boolean;
+  maritalStatus: string | null;
+  jobStatus: string | null;
+  department: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  address: string | null;
+  numberOfChildren: number | null;
 };
 
 type HistoryRow = {
@@ -109,6 +117,8 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           <EditMemberForm member={member} onSaved={load} />
         </div>
       </div>
+
+      <ChildrenSection memberId={id} />
 
       <div className="card">
         <h2 className="font-semibold text-foreground p-6 pb-4">Attendance history</h2>

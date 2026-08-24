@@ -10,11 +10,19 @@ type Member = {
   email: string | null;
 };
 
+type ChildResult = { id: string; name: string; parentName: string | null };
+
+// A unified row for the search results list — either a member or a child,
+// distinguished by `kind` so checkIn() knows which id field to send.
+type ResultRow =
+  | { kind: "member"; id: string; name: string; phone: string | null }
+  | { kind: "child"; id: string; name: string; parentName: string | null };
+
 type CheckInResult = { ok: boolean; alreadyIn?: boolean; memberName?: string };
 
 export default function ManualCheckIn({ serviceId }: { serviceId: string }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Member[]>([]);
+  const [results, setResults] = useState<ResultRow[]>([]);
   const [searching, setSearching] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [showVisitor, setShowVisitor] = useState(false);
@@ -31,17 +39,23 @@ export default function ManualCheckIn({ serviceId }: { serviceId: string }) {
       }
       setSearching(true);
       try {
-        const data = await api.get<{ members: Member[] }>(`/api/members/search?q=${encodeURIComponent(value)}`);
-        setResults(data.members);
+        const [membersData, childrenData] = await Promise.all([
+          api.get<{ members: Member[] }>(`/api/members/search?q=${encodeURIComponent(value)}`),
+          api.get<{ children: ChildResult[] }>(`/api/children/search?q=${encodeURIComponent(value)}`),
+        ]);
+        setResults([
+          ...membersData.members.map((m): ResultRow => ({ kind: "member", id: m.id, name: m.name, phone: m.phone })),
+          ...childrenData.children.map((c): ResultRow => ({ kind: "child", id: c.id, name: c.name, parentName: c.parentName })),
+        ]);
       } finally {
         setSearching(false);
       }
     }, 250);
   }
 
-  async function checkIn(member: Member) {
+  async function checkIn(row: ResultRow) {
     const result = await api.post<CheckInResult>("/api/attendance/manual", {
-      memberId: member.id,
+      ...(row.kind === "member" ? { memberId: row.id } : { childId: row.id }),
       serviceId,
     });
     if (result.ok) {
@@ -68,21 +82,27 @@ export default function ManualCheckIn({ serviceId }: { serviceId: string }) {
       <div className="flex flex-col divide-y divide-border max-h-64 overflow-y-auto">
         {searching && query && <p className="text-sm text-muted py-2">Searching…</p>}
         {!searching &&
-          results.map((m) => (
+          results.map((row) => (
             <button
-              key={m.id}
-              onClick={() => checkIn(m)}
+              key={`${row.kind}-${row.id}`}
+              onClick={() => checkIn(row)}
               className="flex items-center justify-between py-2.5 text-left hover:bg-primary-soft/50 rounded-lg px-2 -mx-2"
             >
               <div>
-                <p className="text-sm font-medium text-foreground">{m.name}</p>
-                {m.phone && <p className="text-xs text-muted">{m.phone}</p>}
+                <p className="text-sm font-medium text-foreground">
+                  {row.name}
+                  {row.kind === "child" && <span className="badge badge-muted ml-2">Child</span>}
+                </p>
+                {row.kind === "member" && row.phone && <p className="text-xs text-muted">{row.phone}</p>}
+                {row.kind === "child" && row.parentName && (
+                  <p className="text-xs text-muted">Child of {row.parentName}</p>
+                )}
               </div>
               <span className="text-xs font-semibold text-primary">Check in →</span>
             </button>
           ))}
         {!searching && query && results.length === 0 && (
-          <p className="text-sm text-muted py-2">No members found. Add them as a visitor below, or from the Members page.</p>
+          <p className="text-sm text-muted py-2">No matches. Add them as a visitor below, or from the Members page.</p>
         )}
       </div>
 

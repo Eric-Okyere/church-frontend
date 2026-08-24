@@ -1,15 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { api, ApiError } from "@/lib/api";
+import { api } from "@/lib/api";
 
 type LookupMember = { id: string; name: string };
+type ChildOption = { id: string; name: string };
+
+type VerifyResult =
+  | { ok: true; venueToken: string; member: { id: string; name: string }; children: ChildOption[] }
+  | { ok: false; reason: string };
 
 type CheckInResult =
   | { ok: true; alreadyIn: boolean; memberName: string; serviceName: string }
   | { ok: false; reason: string };
 
-type Step = "locating" | "location-error" | "search" | "confirm" | "submitting" | "result";
+type Step = "locating" | "location-error" | "search" | "confirm" | "verifying" | "session" | "result";
 
 // Maps a backend `reason` code to a message a member (not a developer) can
 // act on. Keep these specific — "something went wrong" isn't actionable
@@ -19,11 +24,13 @@ const REASON_MESSAGES: Record<string, string> = {
   invalid_location: "We couldn't read your device's location. Please try again.",
   not_configured: "Location check-in isn't set up yet — please see an usher.",
   no_active_service: "No service is active right now. Please check in with an usher instead.",
-  invalid_member: "We couldn't find that member — please try searching again.",
-  inactive_member: "This membership is inactive. Please see an usher for help.",
+  invalid_member: "We couldn't find that record — please try searching again.",
+  inactive_member: "This record is inactive. Please see an usher for help.",
   identity_mismatch: "That phone number doesn't match our records. Double-check it and try again.",
   rate_limited: "Too many attempts — please wait a few minutes and try again, or see an usher.",
   invalid_request: "Something was missing from that request. Please try again.",
+  session_expired: "Your session timed out — please verify again.",
+  not_your_child: "That child isn't linked to your record — please see an usher.",
 };
 
 export default function VenueCheckInPage() {
@@ -38,6 +45,14 @@ export default function VenueCheckInPage() {
   const [selected, setSelected] = useState<LookupMember | null>(null);
   const [phone, setPhone] = useState("");
   const [confirmError, setConfirmError] = useState<string | null>(null);
+
+  // Set once verify succeeds — everything in the "session" step is scoped
+  // to this token, which the backend ties to exactly one member.
+  const [session, setSession] = useState<{ venueToken: string; memberName: string; children: ChildOption[] } | null>(
+    null
+  );
+  const [actionResult, setActionResult] = useState<{ label: string; result: CheckInResult } | null>(null);
+  const [actingOn, setActingOn] = useState<string | null>(null); // "self" | childId | null
 
   const [result, setResult] = useState<CheckInResult | null>(null);
 
@@ -105,22 +120,19 @@ export default function VenueCheckInPage() {
     setStep("search");
   }
 
-  async function submitCheckIn(e: React.FormEvent<HTMLFormElement>) {
+  async function submitVerify(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!selected || !coordsRef.current) return;
     setConfirmError(null);
-    setStep("submitting");
+    setStep("verifying");
     try {
-      const data = await api.post<CheckInResult>("/api/attendance/venue-checkin", {
+      const data = await api.post<VerifyResult>("/api/attendance/venue-verify", {
         memberId: selected.id,
         phone,
         lat: coordsRef.current.lat,
         lng: coordsRef.current.lng,
       });
       if (!data.ok) {
-        // Identity mismatch and a couple of others are worth letting the
-        // member fix without losing their place (re-typing a phone number
-        // shouldn't mean searching their name again).
         if (data.reason === "identity_mismatch") {
           setConfirmError(REASON_MESSAGES.identity_mismatch);
           setStep("confirm");
@@ -130,11 +142,47 @@ export default function VenueCheckInPage() {
         setStep("result");
         return;
       }
-      setResult(data);
+      setSession({ venueToken: data.venueToken, memberName: data.member.name, children: data.children });
+      setActionResult(null);
+      setStep("session");
+    } catch {
+      setResult({ ok: false, reason: "invalid_request" });
       setStep("result");
-    } catch (err) {
-      setResult({ ok: false, reason: err instanceof ApiError ? "invalid_request" : "invalid_request" });
-      setStep("result");
+    }
+  }
+
+  async function checkInSelf() {
+    if (!session) return;
+    setActingOn("self");
+    try {
+      const data = await api.post<CheckInResult>("/api/attendance/venue-checkin-self", {
+        venueToken: session.venueToken,
+        lat: coordsRef.current?.lat,
+        lng: coordsRef.current?.lng,
+      });
+      setActionResult({ label: session.memberName, result: data });
+    } catch {
+      setActionResult({ label: session.memberName, result: { ok: false, reason: "invalid_request" } });
+    } finally {
+      setActingOn(null);
+    }
+  }
+
+  async function checkInChild(child: ChildOption) {
+    if (!session) return;
+    setActingOn(child.id);
+    try {
+      const data = await api.post<CheckInResult>("/api/attendance/venue-checkin-child", {
+        venueToken: session.venueToken,
+        childId: child.id,
+        lat: coordsRef.current?.lat,
+        lng: coordsRef.current?.lng,
+      });
+      setActionResult({ label: child.name, result: data });
+    } catch {
+      setActionResult({ label: child.name, result: { ok: false, reason: "invalid_request" } });
+    } finally {
+      setActingOn(null);
     }
   }
 
@@ -142,6 +190,8 @@ export default function VenueCheckInPage() {
     setSelected(null);
     setPhone("");
     setResult(null);
+    setSession(null);
+    setActionResult(null);
     setQuery("");
     setResults([]);
     setStep("search");
@@ -155,7 +205,7 @@ export default function VenueCheckInPage() {
             G
           </span>
           <h1 className="text-xl font-semibold text-foreground">Check in</h1>
-          <p className="text-muted text-sm mt-1">Find your name to mark yourself present.</p>
+          <p className="text-muted text-sm mt-1">Find your name to mark yourself (or your children) present.</p>
         </div>
 
         {step === "locating" && (
@@ -198,8 +248,8 @@ export default function VenueCheckInPage() {
           </div>
         )}
 
-        {(step === "confirm" || step === "submitting") && selected && (
-          <form onSubmit={submitCheckIn} className="flex flex-col gap-3">
+        {(step === "confirm" || step === "verifying") && selected && (
+          <form onSubmit={submitVerify} className="flex flex-col gap-3">
             <p className="text-sm text-foreground">
               Confirming: <span className="font-semibold">{selected.name}</span>
             </p>
@@ -222,13 +272,58 @@ export default function VenueCheckInPage() {
               />
               <p className="text-xs text-muted">Enter the phone number on file with the church — this confirms it&apos;s you.</p>
             </div>
-            <button type="submit" disabled={step === "submitting"} className="btn btn-primary">
-              {step === "submitting" ? "Checking in…" : "Check in"}
+            <button type="submit" disabled={step === "verifying"} className="btn btn-primary">
+              {step === "verifying" ? "Verifying…" : "Continue"}
             </button>
             <button type="button" onClick={backToSearch} className="text-xs text-muted hover:text-foreground">
               Not you? Search again
             </button>
           </form>
+        )}
+
+        {step === "session" && session && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-muted">
+              Verified as <span className="font-semibold text-foreground">{session.memberName}</span>. Check
+              yourself in, or check in one of your children below.
+            </p>
+
+            {actionResult && (
+              <div
+                className={`text-sm rounded-lg px-3 py-2 ${
+                  actionResult.result.ok ? "text-success bg-success-soft" : "text-danger bg-danger-soft"
+                }`}
+              >
+                {actionResult.result.ok
+                  ? `${actionResult.label}: ${actionResult.result.alreadyIn ? "already checked in" : "checked in!"}`
+                  : `${actionResult.label}: ${REASON_MESSAGES[actionResult.result.reason] || "Couldn't check in — please see an usher."}`}
+              </div>
+            )}
+
+            <button onClick={checkInSelf} disabled={actingOn !== null} className="btn btn-primary">
+              {actingOn === "self" ? "Checking in…" : `Check myself in (${session.memberName.split(" ")[0]})`}
+            </button>
+
+            {session.children.length > 0 && (
+              <div className="flex flex-col gap-2 mt-2">
+                <p className="text-xs font-medium text-muted uppercase tracking-wide">Your children</p>
+                {session.children.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => checkInChild(c)}
+                    disabled={actingOn !== null}
+                    className="btn btn-secondary"
+                  >
+                    {actingOn === c.id ? "Checking in…" : `Check in ${c.name}`}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <button onClick={startOver} className="text-xs text-muted hover:text-foreground mt-2">
+              Done — start over
+            </button>
+          </div>
         )}
 
         {step === "result" && result && (
