@@ -8,12 +8,24 @@ export type AuthUser = {
   name: string;
   username: string;
   role: "admin" | "usher";
+  churchName?: string | null;
+};
+
+export type SignupInput = {
+  churchName: string;
+  adminName: string;
+  username: string;
+  password: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  radiusMeters?: number;
 };
 
 type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<{ error?: string }>;
+  signup: (input: SignupInput) => Promise<{ error?: string }>;
   logout: () => void;
 };
 
@@ -50,12 +62,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const signup = useCallback(async (input: SignupInput) => {
+    try {
+      const res = await api.post<{ token: string; user: AuthUser }>("/api/churches/signup", input);
+      setToken(res.token);
+      setUser(res.user);
+      return {};
+    } catch (err) {
+      return { error: err instanceof ApiError ? err.message : "Couldn't create your church account — try again." };
+    }
+  }, []);
+
   const logout = useCallback(() => {
     setToken(null);
     setUser(null);
   }, []);
 
-  return <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, loading, login, signup, logout }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

@@ -41,10 +41,18 @@ function AdminShell({ children }: { children: React.ReactNode }) {
               <Link href="/admin/venue-qr" className="px-3 py-2 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft">
                 Venue QR
               </Link>
+              {user?.role === "admin" && (
+                <Link href="/admin/settings" className="px-3 py-2 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft">
+                  Settings
+                </Link>
+              )}
             </nav>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-muted hidden sm:inline">{user?.name}</span>
+            <div className="hidden sm:flex flex-col items-end leading-tight">
+              <span className="text-sm text-foreground font-medium">{user?.name}</span>
+              {user?.churchName && <span className="text-xs text-muted">{user.churchName}</span>}
+            </div>
             <button onClick={signOut} className="btn btn-secondary !py-1.5 !px-3 text-xs">
               Sign out
             </button>
@@ -66,6 +74,11 @@ function AdminShell({ children }: { children: React.ReactNode }) {
           <Link href="/admin/venue-qr" className="px-3 py-1.5 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft whitespace-nowrap">
             Venue QR
           </Link>
+          {user?.role === "admin" && (
+            <Link href="/admin/settings" className="px-3 py-1.5 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft whitespace-nowrap">
+              Settings
+            </Link>
+          )}
         </nav>
       </header>
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8">{children}</main>

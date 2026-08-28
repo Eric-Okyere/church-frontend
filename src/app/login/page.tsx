@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 
@@ -72,7 +73,10 @@ export default function LoginPage() {
         </Suspense>
 
         <p className="text-center text-xs text-muted mt-6">
-          First time here? Check the backend README for the default admin login.
+          New church?{" "}
+          <Link href="/signup" className="text-primary font-medium hover:underline">
+            Create your church&apos;s account
+          </Link>
         </p>
       </div>
     </div>
