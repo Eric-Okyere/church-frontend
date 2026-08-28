@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { formatDate, formatTime } from "@/lib/utils";
+import { formatDate, formatTime, telHref, whatsappHref } from "@/lib/utils";
 import EditMemberForm from "./EditMemberForm";
 import ChildrenSection from "./ChildrenSection";
 
@@ -82,7 +82,22 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           <h1 className="text-2xl font-semibold text-foreground">{member.name}</h1>
           <p className="text-sm text-muted">{member.phone || member.email || "No contact info"}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {member.phone && (
+            <>
+              <a href={telHref(member.phone)} className="btn btn-secondary">
+                📞 Call
+              </a>
+              <a
+                href={whatsappHref(member.phone, `Hi ${member.name.split(" ")[0]}, `)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-secondary"
+              >
+                💬 WhatsApp
+              </a>
+            </>
+          )}
           {!member.active && <span className="badge badge-muted">Inactive</span>}
           <button className={member.active ? "btn btn-danger" : "btn btn-secondary"} disabled={busy} onClick={toggleActive}>
             {member.active ? "Deactivate member" : "Reactivate"}
