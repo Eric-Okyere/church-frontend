@@ -20,6 +20,7 @@ export default function AddMemberForm({ onAdded }: { onAdded?: () => void }) {
         name: String(form.get("name") || ""),
         phone: String(form.get("phone") || ""),
         email: String(form.get("email") || ""),
+        gender: String(form.get("gender") || ""),
         maritalStatus: String(form.get("maritalStatus") || ""),
         jobStatus: String(form.get("jobStatus") || ""),
         department: String(form.get("department") || ""),
@@ -67,6 +68,14 @@ export default function AddMemberForm({ onAdded }: { onAdded?: () => void }) {
           Additional details (optional)
         </summary>
         <div className="p-3 pt-1 grid sm:grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-foreground">Gender</label>
+            <select name="gender" className="input" defaultValue="">
+              <option value="">Not specified</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-foreground">Marital status</label>
             <select name="maritalStatus" className="input" defaultValue="">

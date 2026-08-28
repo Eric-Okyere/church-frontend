@@ -12,6 +12,7 @@ type Member = {
   phone: string | null;
   email: string | null;
   active: boolean;
+  gender: string | null;
   maritalStatus: string | null;
   jobStatus: string | null;
   department: string | null;
@@ -80,7 +81,10 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{member.name}</h1>
-          <p className="text-sm text-muted">{member.phone || member.email || "No contact info"}</p>
+          <p className="text-sm text-muted">
+            {member.phone || member.email || "No contact info"}
+            {member.gender ? ` · ${member.gender}` : ""}
+          </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           {member.phone && (

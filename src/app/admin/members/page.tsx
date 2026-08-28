@@ -7,6 +7,7 @@ import { telHref, whatsappHref } from "@/lib/utils";
 import AddMemberForm from "./AddMemberForm";
 import { StatTile } from "@/components/charts/StatTile";
 import { MagnitudeBarChart } from "@/components/charts/MagnitudeBarChart";
+import { CategoricalBreakdownChart } from "@/components/charts/CategoricalBreakdownChart";
 
 type Member = {
   id: string;
@@ -14,6 +15,7 @@ type Member = {
   phone: string | null;
   email: string | null;
   active: boolean;
+  gender: string | null;
   department: string | null;
   createdAt: string;
 };
@@ -86,6 +88,22 @@ export default function MembersPage() {
       .map(([label, value]) => ({ label, value }));
   }, [active]);
 
+  // Fixed order (Male, Female, Not specified) so a gender's color/position
+  // never shifts as counts change — same convention as the analytics
+  // page's check-in-method chart.
+  const genderChartData = useMemo(() => {
+    if (!active) return [];
+    const counts = { Male: 0, Female: 0, "Not specified": 0 };
+    for (const m of active) {
+      if (m.gender === "Male") counts.Male++;
+      else if (m.gender === "Female") counts.Female++;
+      else counts["Not specified"]++;
+    }
+    return Object.entries(counts)
+      .filter(([, value]) => value > 0)
+      .map(([label, value]) => ({ label, value }));
+  }, [active]);
+
   const totalCount = (active?.length ?? 0) + inactive.length;
 
   return (
@@ -102,10 +120,17 @@ export default function MembersPage() {
       </div>
 
       {active !== null && active.length > 0 && (
-        <div className="card p-6">
-          <h2 className="font-semibold text-foreground mb-1">Members by department</h2>
-          <p className="text-xs text-muted mb-4">Active members only.</p>
-          <MagnitudeBarChart data={departmentChartData} />
+        <div className="grid lg:grid-cols-2 gap-4">
+          <div className="card p-6">
+            <h2 className="font-semibold text-foreground mb-1">Members by department</h2>
+            <p className="text-xs text-muted mb-4">Active members only.</p>
+            <MagnitudeBarChart data={departmentChartData} />
+          </div>
+          <div className="card p-6">
+            <h2 className="font-semibold text-foreground mb-1">Members by gender</h2>
+            <p className="text-xs text-muted mb-4">Active members only.</p>
+            <CategoricalBreakdownChart data={genderChartData} />
+          </div>
         </div>
       )}
 
@@ -147,6 +172,7 @@ export default function MembersPage() {
               <p className="font-medium text-foreground truncate">{m.name}</p>
               <p className="text-xs text-muted truncate">
                 {m.phone || m.email || "No contact info"}
+                {m.gender ? ` · ${m.gender}` : ""}
                 {m.department ? ` · ${m.department}` : ""}
               </p>
             </Link>
