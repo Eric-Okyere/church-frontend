@@ -3,7 +3,6 @@
 import { use, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 
-type LookupMember = { id: string; name: string };
 type ChildOption = { id: string; name: string };
 
 type VerifyResult =
@@ -19,8 +18,7 @@ type Step =
   | "unknown-church"
   | "locating"
   | "location-error"
-  | "search"
-  | "confirm"
+  | "phone"
   | "verifying"
   | "session"
   | "result";
@@ -33,11 +31,12 @@ const REASON_MESSAGES: Record<string, string> = {
   invalid_location: "We couldn't read your device's location. Please try again.",
   not_configured: "Location check-in isn't set up yet — please see an usher.",
   no_active_service: "No service is active right now. Please check in with an usher instead.",
-  invalid_member: "We couldn't find that record — please try searching again.",
+  not_found: "We couldn't find that phone number on file. Double-check it and try again, or see an usher.",
+  invalid_member: "We couldn't find that record — please try again.",
   inactive_member: "This record is inactive. Please see an usher for help.",
-  identity_mismatch: "That phone number doesn't match our records. Double-check it and try again.",
   rate_limited: "Too many attempts — please wait a few minutes and try again, or see an usher.",
   invalid_request: "Something was missing from that request. Please try again.",
+  unknown_church: "We don't recognize this check-in link. Please ask your church for their current QR code or link.",
   session_expired: "Your session timed out — please verify again.",
   not_your_child: "That child isn't linked to your record — please see an usher.",
 };
@@ -49,13 +48,8 @@ export default function VenueCheckInPage({ params }: { params: Promise<{ slug: s
   const [locationError, setLocationError] = useState<string | null>(null);
   const coordsRef = useRef<{ lat: number; lng: number } | null>(null);
 
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<LookupMember[]>([]);
-  const [searching, setSearching] = useState(false);
-
-  const [selected, setSelected] = useState<LookupMember | null>(null);
   const [phone, setPhone] = useState("");
-  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
 
   // Set once verify succeeds — everything in the "session" step is scoped
   // to this token, which the backend ties to exactly one member.
@@ -69,7 +63,7 @@ export default function VenueCheckInPage({ params }: { params: Promise<{ slug: s
 
   // First, confirm this link points at a real, active church — a bad or
   // mistyped slug should say so clearly rather than silently behaving like
-  // an empty search.
+  // an empty form.
   useEffect(() => {
     api
       .get<{ church: { name: string; slug: string } }>(`/api/churches/${encodeURIComponent(slug)}`)
@@ -92,7 +86,7 @@ export default function VenueCheckInPage({ params }: { params: Promise<{ slug: s
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         coordsRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setStep("search");
+        setStep("phone");
       },
       (err) => {
         const message =
@@ -104,7 +98,6 @@ export default function VenueCheckInPage({ params }: { params: Promise<{ slug: s
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
-     
   }, [step]);
 
   function retryLocation() {
@@ -112,60 +105,25 @@ export default function VenueCheckInPage({ params }: { params: Promise<{ slug: s
     setLocationError(null);
   }
 
-  // Debounced search-as-you-type, scoped to this church's slug — this is
-  // what keeps one church's self-check-in page from ever searching another
-  // church's members.
-  useEffect(() => {
-    if (step !== "search") return;
-    const q = query.trim();
-    if (q.length < 2) {
-      setResults([]);
-      return;
-    }
-    setSearching(true);
-    const handle = setTimeout(async () => {
-      try {
-        const data = await api.get<{ members: LookupMember[] }>(
-          `/api/members/lookup?church=${encodeURIComponent(slug)}&q=${encodeURIComponent(q)}`
-        );
-        setResults(data.members);
-      } catch {
-        setResults([]);
-      } finally {
-        setSearching(false);
-      }
-    }, 300);
-    return () => clearTimeout(handle);
-  }, [query, step, slug]);
-
-  function pickMember(member: LookupMember) {
-    setSelected(member);
-    setPhone("");
-    setConfirmError(null);
-    setStep("confirm");
-  }
-
-  function backToSearch() {
-    setSelected(null);
-    setStep("search");
-  }
-
+  // The whole identity check is just this: phone number + being on-site.
+  // No name search, no picking yourself out of a list — the backend looks
+  // the member up by phone directly, scoped to this one church.
   async function submitVerify(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!selected || !coordsRef.current) return;
-    setConfirmError(null);
+    if (!coordsRef.current) return;
+    setVerifyError(null);
     setStep("verifying");
     try {
       const data = await api.post<VerifyResult>("/api/attendance/venue-verify", {
-        memberId: selected.id,
+        slug,
         phone,
         lat: coordsRef.current.lat,
         lng: coordsRef.current.lng,
       });
       if (!data.ok) {
-        if (data.reason === "identity_mismatch") {
-          setConfirmError(REASON_MESSAGES.identity_mismatch);
-          setStep("confirm");
+        if (data.reason === "not_found") {
+          setVerifyError(REASON_MESSAGES.not_found);
+          setStep("phone");
           return;
         }
         setResult(data);
@@ -217,14 +175,12 @@ export default function VenueCheckInPage({ params }: { params: Promise<{ slug: s
   }
 
   function startOver() {
-    setSelected(null);
     setPhone("");
+    setVerifyError(null);
     setResult(null);
     setSession(null);
     setActionResult(null);
-    setQuery("");
-    setResults([]);
-    setStep("search");
+    setStep("phone");
   }
 
   return (
@@ -234,10 +190,10 @@ export default function VenueCheckInPage({ params }: { params: Promise<{ slug: s
           <span className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center text-lg font-bold mx-auto mb-3">
             G
           </span>
-          <h1 className="text-xl font-semibold text-foreground">Check in</h1>
+          <h1 className="text-xl font-semibold text-foreground">Welcome{churchName ? ` to ${churchName}` : ""}!</h1>
           <p className="text-muted text-sm mt-1">
-            {churchName ? `${churchName} — find your name` : "Find your name"} to mark yourself (or your children)
-            present.
+            We&apos;re glad you&apos;re here. Just enter your phone number below to check yourself in — and your
+            children too, if they&apos;re with you today.
           </p>
         </div>
 
@@ -245,13 +201,11 @@ export default function VenueCheckInPage({ params }: { params: Promise<{ slug: s
 
         {step === "unknown-church" && (
           <p className="text-sm text-danger bg-danger-soft rounded-lg px-3 py-2">
-            We don&apos;t recognize this check-in link. Please ask your church for their current QR code or link.
+            {REASON_MESSAGES.unknown_church}
           </p>
         )}
 
-        {step === "locating" && (
-          <p className="text-sm text-muted text-center py-6">Checking your location…</p>
-        )}
+        {step === "locating" && <p className="text-sm text-muted text-center py-6">Checking your location…</p>}
 
         {step === "location-error" && (
           <div className="flex flex-col gap-3">
@@ -262,41 +216,9 @@ export default function VenueCheckInPage({ params }: { params: Promise<{ slug: s
           </div>
         )}
 
-        {step === "search" && (
-          <div className="flex flex-col gap-3">
-            <input
-              autoFocus
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="input"
-              placeholder="Type your name"
-            />
-            {searching && <p className="text-xs text-muted">Searching…</p>}
-            {!searching && query.trim().length >= 2 && results.length === 0 && (
-              <p className="text-xs text-muted">No matches — check the spelling, or see an usher.</p>
-            )}
-            <div className="flex flex-col divide-y divide-border">
-              {results.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => pickMember(m)}
-                  className="text-left py-3 text-sm font-medium text-foreground hover:text-primary"
-                >
-                  {m.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {(step === "confirm" || step === "verifying") && selected && (
+        {(step === "phone" || step === "verifying") && (
           <form onSubmit={submitVerify} className="flex flex-col gap-3">
-            <p className="text-sm text-foreground">
-              Confirming: <span className="font-semibold">{selected.name}</span>
-            </p>
-            {confirmError && (
-              <div className="text-sm text-danger bg-danger-soft rounded-lg px-3 py-2">{confirmError}</div>
-            )}
+            {verifyError && <div className="text-sm text-danger bg-danger-soft rounded-lg px-3 py-2">{verifyError}</div>}
             <div className="flex flex-col gap-1.5">
               <label htmlFor="phone" className="text-sm font-medium text-foreground">
                 Your phone number
@@ -311,13 +233,10 @@ export default function VenueCheckInPage({ params }: { params: Promise<{ slug: s
                 className="input"
                 placeholder="024 000 0000"
               />
-              <p className="text-xs text-muted">Enter the phone number on file with the church — this confirms it&apos;s you.</p>
+              <p className="text-xs text-muted">Enter the phone number on file with the church.</p>
             </div>
             <button type="submit" disabled={step === "verifying"} className="btn btn-primary">
-              {step === "verifying" ? "Verifying…" : "Continue"}
-            </button>
-            <button type="button" onClick={backToSearch} className="text-xs text-muted hover:text-foreground">
-              Not you? Search again
+              {step === "verifying" ? "Checking…" : "Continue"}
             </button>
           </form>
         )}
@@ -380,7 +299,9 @@ export default function VenueCheckInPage({ params }: { params: Promise<{ slug: s
                 <h2 className="text-lg font-semibold text-foreground">
                   {result.alreadyIn ? "Already checked in" : "You're checked in!"}
                 </h2>
-                <p className="text-muted text-sm mt-2">{result.memberName} · {result.serviceName}</p>
+                <p className="text-muted text-sm mt-2">
+                  {result.memberName} · {result.serviceName}
+                </p>
               </>
             ) : (
               <>
