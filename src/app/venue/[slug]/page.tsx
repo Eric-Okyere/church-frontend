@@ -133,7 +133,14 @@ export default function VenueCheckInPage({ params }: { params: Promise<{ slug: s
       setSession({ venueToken: data.venueToken, memberName: data.member.name, children: data.children });
       setActionResult(null);
       setStep("session");
-    } catch {
+    } catch (err) {
+      // A thrown error here means the request itself failed (network,
+      // CORS, or the backend rejected it outright — e.g. a stale deployment
+      // still running the old venue-verify contract that expects a
+      // memberId this page no longer sends). Logged so it's diagnosable
+      // from the browser console instead of only ever showing the same
+      // generic message no matter the real cause.
+      console.error("venue-verify request failed:", err);
       setResult({ ok: false, reason: "invalid_request" });
       setStep("result");
     }
