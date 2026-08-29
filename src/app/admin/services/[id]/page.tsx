@@ -5,6 +5,7 @@ import { api, downloadCsv } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import LiveAttendance from "@/components/LiveAttendance";
 import ManualCheckIn from "@/components/ManualCheckIn";
+import ServiceDemographics from "@/components/ServiceDemographics";
 
 type Service = { id: string; name: string; date: string; status: "scheduled" | "active" | "ended" };
 
@@ -90,6 +91,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
           <LiveAttendance serviceId={service.id} />
         </div>
       </div>
+
+      <ServiceDemographics serviceId={service.id} />
     </div>
   );
 }
