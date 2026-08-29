@@ -113,10 +113,16 @@ export default function SettingsPage() {
         </div>
 
         <div className="border-t border-border pt-4 flex flex-col gap-2">
-          <p className="text-sm font-medium text-foreground">Coverage area (for member self-check-in)</p>
+          <p className="text-sm font-medium text-foreground">Coverage area (premises location)</p>
           <p className="text-xs text-muted">
             A member&apos;s phone must be within the radius below of these coordinates for the venue self-check-in QR
             code to work. Leave coordinates blank to disable self-check-in until you set this.
+          </p>
+          <p className="text-xs text-muted">
+            <strong className="text-foreground font-medium">This also governs admin/usher check-in</strong> — once
+            you set coordinates here, the QR kiosk scanner, manual check-in, and adding a walk-in visitor all require
+            the admin&apos;s/usher&apos;s own device to be within this same radius too. Leave it blank for now if you
+            aren&apos;t ready for that yet.
           </p>
           <button type="button" onClick={useMyLocation} disabled={locating} className="btn btn-secondary self-start">
             {locating ? "Getting your location…" : "Use my current location"}

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
+import { getCurrentPosition, geoErrorMessage, premisesErrorMessage } from "@/lib/geolocation";
 
 type ScanResult = {
   ok: boolean;
@@ -19,6 +20,10 @@ export default function Scanner() {
   const [error, setError] = useState<string | null>(null);
   const [feed, setFeed] = useState<{ id: string; text: string; tone: "success" | "warning" | "muted" }[]>([]);
   const lastScanRef = useRef<{ token: string; at: number } | null>(null);
+  // Captured once when the camera starts — an admin at a kiosk isn't
+  // walking around mid-service, so one location fix per scanning session
+  // is enough, and re-asking on every single scan would be a bad kiosk UX.
+  const coordsRef = useRef<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     return () => {
@@ -44,7 +49,11 @@ export default function Scanner() {
     lastScanRef.current = { token: rawText, at: now };
 
     try {
-      const data = await api.post<ScanResult>("/api/attendance/scan", { token: rawText });
+      const coords = coordsRef.current;
+      const data = await api.post<ScanResult>("/api/attendance/scan", {
+        token: rawText,
+        ...(coords ? { lat: coords.lat, lng: coords.lng } : {}),
+      });
 
       if (data.ok && !data.alreadyIn) {
         pushFeed(`${data.memberName} checked in`, "success");
@@ -52,6 +61,14 @@ export default function Scanner() {
         pushFeed(`${data.memberName} already checked in`, "warning");
       } else if (data.reason === "no_active_service") {
         pushFeed("No active service — start one first", "warning");
+      } else if (data.reason === "out_of_range" || data.reason === "location_required") {
+        // The whole scanning session is out of range (or lost its location
+        // fix) — every further scan will fail the same way, so stop the
+        // camera and surface a banner instead of quietly failing scan
+        // after scan.
+        pushFeed(premisesErrorMessage(data.reason), "warning");
+        await stop();
+        setError(premisesErrorMessage(data.reason));
       } else {
         pushFeed("Code not recognized", "warning");
       }
@@ -62,6 +79,14 @@ export default function Scanner() {
 
   async function start() {
     setError(null);
+
+    const location = await getCurrentPosition();
+    if (!location.ok) {
+      setError(geoErrorMessage(location.reason));
+      return;
+    }
+    coordsRef.current = { lat: location.lat, lng: location.lng };
+
     try {
       const { Html5Qrcode } = await import("html5-qrcode");
       const instance = new Html5Qrcode(SCANNER_ID, { verbose: false });
@@ -125,6 +150,7 @@ export default function Scanner() {
         {!running && (
           <div className="absolute inset-0 h-56 flex items-center justify-center text-sm text-muted px-6 text-center pointer-events-none">
             Point a phone or tablet camera here at each member&apos;s personal QR code to check them in instantly.
+            {" "}If your church has set a premises location, this device needs to be there too.
           </div>
         )}
       </div>

@@ -23,9 +23,16 @@ export function setToken(token: string | null) {
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  // The parsed JSON body of a non-2xx response, when there was one — e.g.
+  // `{ ok: false, reason: "out_of_range" }` from the on-premises checks.
+  // Callers that need a specific `reason` code (not just a message) read
+  // it from here rather than every route needing its own bespoke error
+  // shape reachable through `.message`.
+  data: unknown;
+  constructor(message: string, status: number, data?: unknown) {
     super(message);
     this.status = status;
+    this.data = data;
   }
 }
 
@@ -40,7 +47,7 @@ async function apiFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const data = contentType.includes("application/json") ? await res.json().catch(() => null) : null;
 
   if (!res.ok) {
-    throw new ApiError(data?.error || `Request failed (${res.status})`, res.status);
+    throw new ApiError(data?.error || `Request failed (${res.status})`, res.status, data);
   }
   return data as T;
 }
