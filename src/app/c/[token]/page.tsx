@@ -1,25 +1,40 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { API_URL } from "@/lib/api";
+import { API_URL, getToken } from "@/lib/api";
 import { formatTime } from "@/lib/utils";
 
 type CheckInResult =
   | { ok: true; alreadyIn: boolean; memberName: string; serviceName: string }
-  | { ok: false; reason: "no_active_service" | "invalid_token" | "inactive_member" };
+  | { ok: false; reason: "no_active_service" | "invalid_token" | "inactive_member" | "unauthorized" };
 
+// A member's/child's personal QR code encodes a plain link to this page —
+// which means any phone's camera app can open it, not just the in-app
+// kiosk scanner. The backend now requires an admin/usher session to
+// actually check someone in this way (see the "admin-only-qr-checkin"
+// note in church-backend), so this page only succeeds when it's opened
+// from a browser where an admin/usher is already signed in — attaching
+// the stored token below is what makes that possible, and every other
+// visitor (the overwhelmingly common case) gets the "unauthorized" state.
 export default function SelfCheckInPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
   const [result, setResult] = useState<CheckInResult | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    const authToken = getToken();
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (authToken) headers.Authorization = `Bearer ${authToken}`;
+
     fetch(`${API_URL}/api/attendance/checkin`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ token }),
     })
-      .then((res) => res.json())
+      .then(async (res) => {
+        if (res.status === 401) return { ok: false, reason: "unauthorized" } as const;
+        return res.json();
+      })
       .then((data) => {
         if (!cancelled) setResult(data);
       })
@@ -68,11 +83,14 @@ export default function SelfCheckInPage({ params }: { params: Promise<{ token: s
               {result.reason === "no_active_service" && "No service is active right now"}
               {result.reason === "invalid_token" && "QR code not recognized"}
               {result.reason === "inactive_member" && "This membership is inactive"}
+              {result.reason === "unauthorized" && "This check-in needs an usher"}
             </h1>
             <p className="text-muted text-sm mt-2">
-              {result.reason === "no_active_service"
-                ? "Please check in with an usher at the entrance instead."
-                : "Please see an usher at the entrance for help."}
+              {result.reason === "no_active_service" && "Please check in with an usher at the entrance instead."}
+              {result.reason === "unauthorized" &&
+                "Personal QR codes are checked in by church staff, not by scanning with your own camera. Please see an usher at the entrance — they'll scan you in."}
+              {(result.reason === "invalid_token" || result.reason === "inactive_member") &&
+                "Please see an usher at the entrance for help."}
             </p>
           </>
         )}

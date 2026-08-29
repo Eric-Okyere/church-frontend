@@ -117,7 +117,8 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
             <img src={qrDataUrl} alt={`QR code for ${member.name}`} className="w-56 h-56 rounded-xl border border-border" />
           )}
           <p className="text-xs text-muted mt-3">
-            Scanning this marks {member.name.split(" ")[0]} present for whichever service is currently active.
+            An usher scanning this in the check-in kiosk marks {member.name.split(" ")[0]} present for whichever
+            service is currently active. Scanning it with an ordinary phone camera won&apos;t check anyone in.
           </p>
           <div className="flex gap-2 mt-4 w-full">
             {qrDataUrl && (
