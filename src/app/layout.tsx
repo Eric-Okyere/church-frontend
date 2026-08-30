@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import Footer from "@/components/Footer";
+import RefreshButton from "@/components/RefreshButton";
 
 export const metadata: Metadata = {
   title: "GraceTrack — Church Attendance",
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <div className="flex-1 flex flex-col">{children}</div>
         </AuthProvider>
         <Footer />
+        <RefreshButton />
       </body>
     </html>
   );
