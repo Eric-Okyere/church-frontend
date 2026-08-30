@@ -4,8 +4,18 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { telHref, whatsappHref } from "@/lib/utils";
 
-type RosterMember = { id: string; name: string; phone: string | null; checkedInAt?: string };
-type Visitor = { id: string; name: string; phone: string | null; checkedInAt: string };
+type RosterMember = {
+  id: string;
+  name: string;
+  phone: string | null;
+  checkedInAt?: string;
+  // Set when an admin/usher checked this member in on their behalf (kiosk
+  // scan, manual, or a shared admin QR link) rather than the member
+  // self-checking-in at the venue — surfaces who to ask if there's ever a
+  // question about a check-in recorded under pressure at a busy door.
+  checkedInByName?: string | null;
+};
+type Visitor = { id: string; name: string; phone: string | null; checkedInAt: string; checkedInByName?: string | null };
 
 type AttendanceResponse = {
   roster?: { presentMembers: RosterMember[]; absentMembers: RosterMember[] };
@@ -105,6 +115,7 @@ export default function ServiceRoster({ serviceId }: { serviceId: string }) {
               <p className="text-xs text-muted">
                 {p.phone ?? "No phone on file"}
                 {"checkedInAt" in p && p.checkedInAt && <> · checked in {timeLabel(p.checkedInAt)}</>}
+                {"checkedInByName" in p && p.checkedInByName && <> · by {p.checkedInByName}</>}
               </p>
             </div>
             {p.phone && (

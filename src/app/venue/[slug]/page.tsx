@@ -21,7 +21,9 @@ type Step =
   | "phone"
   | "verifying"
   | "session"
-  | "result";
+  | "result"
+  | "visitor"
+  | "visitor-submitting";
 
 // Maps a backend `reason` code to a message a member (not a developer) can
 // act on. Keep these specific — "something went wrong" isn't actionable
@@ -50,6 +52,13 @@ export default function VenueCheckInPage({ params }: { params: Promise<{ slug: s
 
   const [phone, setPhone] = useState("");
   const [verifyError, setVerifyError] = useState<string | null>(null);
+
+  // First-time visitors (not yet a member) type their own name + phone here
+  // so an usher can follow up about membership — no venueToken/session
+  // needed since there's no existing identity to scope one to.
+  const [visitorName, setVisitorName] = useState("");
+  const [visitorPhone, setVisitorPhone] = useState("");
+  const [visitorError, setVisitorError] = useState<string | null>(null);
 
   // Set once verify succeeds — everything in the "session" step is scoped
   // to this token, which the backend ties to exactly one member.
@@ -187,7 +196,41 @@ export default function VenueCheckInPage({ params }: { params: Promise<{ slug: s
     setResult(null);
     setSession(null);
     setActionResult(null);
+    setVisitorName("");
+    setVisitorPhone("");
+    setVisitorError(null);
     setStep("phone");
+  }
+
+  function goToVisitor() {
+    setVerifyError(null);
+    setVisitorError(null);
+    setStep("visitor");
+  }
+
+  // A visitor has no phone number on file to verify — just the same on-site
+  // location check as everyone else, then their name (required) and phone
+  // (optional, so an usher can follow up if they're interested in joining).
+  async function submitVisitor(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!coordsRef.current) return;
+    setVisitorError(null);
+    setStep("visitor-submitting");
+    try {
+      const data = await api.post<CheckInResult>("/api/attendance/venue-checkin-visitor", {
+        slug,
+        name: visitorName,
+        phone: visitorPhone,
+        lat: coordsRef.current.lat,
+        lng: coordsRef.current.lng,
+      });
+      setResult(data);
+      setStep("result");
+    } catch (err) {
+      console.error("venue-checkin-visitor request failed:", err);
+      setResult({ ok: false, reason: "invalid_request" });
+      setStep("result");
+    }
   }
 
   return (
@@ -244,6 +287,55 @@ export default function VenueCheckInPage({ params }: { params: Promise<{ slug: s
             </div>
             <button type="submit" disabled={step === "verifying"} className="btn btn-primary">
               {step === "verifying" ? "Checking…" : "Continue"}
+            </button>
+            <button type="button" onClick={goToVisitor} className="text-xs text-muted hover:text-foreground mt-1">
+              New here? Check in as a visitor
+            </button>
+          </form>
+        )}
+
+        {(step === "visitor" || step === "visitor-submitting") && (
+          <form onSubmit={submitVisitor} className="flex flex-col gap-3">
+            <p className="text-sm text-muted">
+              Glad you&apos;re here! Just your name (and phone, if you&apos;d like an usher to follow up about
+              joining the church).
+            </p>
+            {visitorError && (
+              <div className="text-sm text-danger bg-danger-soft rounded-lg px-3 py-2">{visitorError}</div>
+            )}
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="visitor-name" className="text-sm font-medium text-foreground">
+                Your name
+              </label>
+              <input
+                id="visitor-name"
+                type="text"
+                required
+                autoFocus
+                value={visitorName}
+                onChange={(e) => setVisitorName(e.target.value)}
+                className="input"
+                placeholder="Full name"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="visitor-phone" className="text-sm font-medium text-foreground">
+                Phone number <span className="text-muted font-normal">(optional)</span>
+              </label>
+              <input
+                id="visitor-phone"
+                type="tel"
+                value={visitorPhone}
+                onChange={(e) => setVisitorPhone(e.target.value)}
+                className="input"
+                placeholder="024 000 0000"
+              />
+            </div>
+            <button type="submit" disabled={step === "visitor-submitting"} className="btn btn-primary">
+              {step === "visitor-submitting" ? "Checking in…" : "Check in as a visitor"}
+            </button>
+            <button type="button" onClick={startOver} className="text-xs text-muted hover:text-foreground mt-1">
+              Actually, I&apos;m a member — go back
             </button>
           </form>
         )}

@@ -9,6 +9,9 @@ type Row = {
   phone: string | null;
   method: "qr" | "manual" | "visitor";
   checkedInAt: string;
+  // Who checked this person in, when an admin/usher did it on their behalf
+  // (kiosk scan, manual, walk-in visitor) — null for self-service check-ins.
+  checkedInByName: string | null;
 };
 
 // Present/absent is scoped to the church's active member roster — the
@@ -72,6 +75,7 @@ export default function LiveAttendance({ serviceId }: { serviceId: string }) {
                   minute: "2-digit",
                   second: "2-digit",
                 })}
+                {r.checkedInByName && <> · by {r.checkedInByName}</>}
               </p>
             </div>
             <span className="badge badge-muted">{methodLabel[r.method]}</span>
