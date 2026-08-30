@@ -1,13 +1,49 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import RequireAuth from "@/components/RequireAuth";
+
+type NavItem = { href: string; label: string; adminOnly?: boolean };
+
+const NAV_ITEMS: NavItem[] = [
+  { href: "/admin", label: "Dashboard" },
+  { href: "/admin/services", label: "Services" },
+  { href: "/admin/members", label: "Members" },
+  { href: "/admin/analytics", label: "Analytics" },
+  { href: "/scan", label: "Scan / Check-in" },
+  { href: "/admin/venue-qr", label: "Venue QR" },
+  { href: "/admin/settings", label: "Settings", adminOnly: true },
+];
+
+// "/admin" is a prefix of every other admin route, so it needs an exact
+// match to avoid lighting up "Dashboard" on every single admin page —
+// everything else is active on its own path AND any nested route below it
+// (e.g. "/admin/services" stays highlighted while viewing
+// "/admin/services/<id>").
+function isNavItemActive(pathname: string, href: string) {
+  if (href === "/admin") return pathname === "/admin";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function NavLink({ href, label, active, mobile }: { href: string; label: string; active: boolean; mobile?: boolean }) {
+  const base = mobile ? "px-3 py-1.5 rounded-lg whitespace-nowrap" : "px-3 py-2 rounded-lg";
+  const state = active
+    ? "bg-primary-soft text-primary font-medium"
+    : "text-muted hover:text-foreground hover:bg-primary-soft";
+  return (
+    <Link href={href} aria-current={active ? "page" : undefined} className={`${base} ${state}`}>
+      {label}
+    </Link>
+  );
+}
 
 function AdminShell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const visibleItems = NAV_ITEMS.filter((item) => !item.adminOnly || user?.role === "admin");
 
   function signOut() {
     logout();
@@ -26,29 +62,9 @@ function AdminShell({ children }: { children: React.ReactNode }) {
               GraceTrack
             </Link>
             <nav className="hidden sm:flex items-center gap-1 text-sm">
-              <Link href="/admin" className="px-3 py-2 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft">
-                Dashboard
-              </Link>
-              <Link href="/admin/services" className="px-3 py-2 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft">
-                Services
-              </Link>
-              <Link href="/admin/members" className="px-3 py-2 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft">
-                Members
-              </Link>
-              <Link href="/admin/analytics" className="px-3 py-2 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft">
-                Analytics
-              </Link>
-              <Link href="/scan" className="px-3 py-2 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft">
-                Scan / Check-in
-              </Link>
-              <Link href="/admin/venue-qr" className="px-3 py-2 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft">
-                Venue QR
-              </Link>
-              {user?.role === "admin" && (
-                <Link href="/admin/settings" className="px-3 py-2 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft">
-                  Settings
-                </Link>
-              )}
+              {visibleItems.map((item) => (
+                <NavLink key={item.href} href={item.href} label={item.label} active={isNavItemActive(pathname, item.href)} />
+              ))}
             </nav>
           </div>
           <div className="flex items-center gap-3">
@@ -62,29 +78,15 @@ function AdminShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <nav className="sm:hidden flex items-center gap-1 text-sm px-4 pb-3 overflow-x-auto">
-          <Link href="/admin" className="px-3 py-1.5 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft whitespace-nowrap">
-            Dashboard
-          </Link>
-          <Link href="/admin/services" className="px-3 py-1.5 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft whitespace-nowrap">
-            Services
-          </Link>
-          <Link href="/admin/members" className="px-3 py-1.5 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft whitespace-nowrap">
-            Members
-          </Link>
-          <Link href="/admin/analytics" className="px-3 py-1.5 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft whitespace-nowrap">
-            Analytics
-          </Link>
-          <Link href="/scan" className="px-3 py-1.5 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft whitespace-nowrap">
-            Scan
-          </Link>
-          <Link href="/admin/venue-qr" className="px-3 py-1.5 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft whitespace-nowrap">
-            Venue QR
-          </Link>
-          {user?.role === "admin" && (
-            <Link href="/admin/settings" className="px-3 py-1.5 rounded-lg text-muted hover:text-foreground hover:bg-primary-soft whitespace-nowrap">
-              Settings
-            </Link>
-          )}
+          {visibleItems.map((item) => (
+            <NavLink
+              key={item.href}
+              href={item.href}
+              label={item.href === "/scan" ? "Scan" : item.label}
+              active={isNavItemActive(pathname, item.href)}
+              mobile
+            />
+          ))}
         </nav>
       </header>
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8">{children}</main>
