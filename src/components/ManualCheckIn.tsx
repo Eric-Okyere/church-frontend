@@ -26,6 +26,10 @@ export default function ManualCheckIn({ serviceId }: { serviceId: string }) {
   const [results, setResults] = useState<ResultRow[]>([]);
   const [searching, setSearching] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // Kept separate from `message` (which is always styled as a success) so a
+  // rejection — e.g. "Enable location access to check members in." — never
+  // renders in green as if it worked.
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showVisitor, setShowVisitor] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Requires the admin's own device to be at the church before any of the
@@ -36,6 +40,7 @@ export default function ManualCheckIn({ serviceId }: { serviceId: string }) {
   function onQueryChange(value: string) {
     setQuery(value);
     setMessage(null);
+    setErrorMessage(null);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       if (!value.trim()) {
@@ -60,6 +65,8 @@ export default function ManualCheckIn({ serviceId }: { serviceId: string }) {
 
   async function checkIn(row: ResultRow) {
     const coords = coordsRef.current;
+    setMessage(null);
+    setErrorMessage(null);
     try {
       const result = await api.post<CheckInResult>("/api/attendance/manual", {
         ...(row.kind === "member" ? { memberId: row.id } : { childId: row.id }),
@@ -69,10 +76,10 @@ export default function ManualCheckIn({ serviceId }: { serviceId: string }) {
       if (result.ok) {
         setMessage(result.alreadyIn ? `${result.memberName} was already checked in.` : `${result.memberName} checked in ✓`);
       } else {
-        setMessage("Couldn't check in — please try again.");
+        setErrorMessage("Couldn't check in — please try again.");
       }
     } catch (err) {
-      setMessage(err instanceof ApiError && err.status === 403 ? premisesErrorMessage(reasonFromError(err)) : "Couldn't check in — please try again.");
+      setErrorMessage(err instanceof ApiError && err.status === 403 ? premisesErrorMessage(reasonFromError(err)) : "Couldn't check in — please try again.");
     }
     setQuery("");
     setResults([]);
@@ -97,6 +104,7 @@ export default function ManualCheckIn({ serviceId }: { serviceId: string }) {
           onChange={(e) => onQueryChange(e.target.value)}
         />
         {message && <p className="text-sm text-success mt-2">{message}</p>}
+        {errorMessage && <p className="text-sm text-danger mt-2">{errorMessage}</p>}
       </div>
 
       <div className="flex flex-col divide-y divide-border max-h-64 overflow-y-auto">
@@ -137,6 +145,7 @@ export default function ManualCheckIn({ serviceId }: { serviceId: string }) {
             coordsRef={coordsRef}
             onDone={(msg) => {
               setMessage(msg);
+              setErrorMessage(null);
               setShowVisitor(false);
             }}
           />
