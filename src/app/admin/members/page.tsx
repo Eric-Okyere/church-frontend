@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { telHref, whatsappHref } from "@/lib/utils";
 import AddMemberForm from "./AddMemberForm";
+import MemberImport from "./MemberImport";
 import { StatTile } from "@/components/charts/StatTile";
 import { MagnitudeBarChart } from "@/components/charts/MagnitudeBarChart";
 import { CategoricalBreakdownChart } from "@/components/charts/CategoricalBreakdownChart";
@@ -135,9 +136,13 @@ export default function MembersPage() {
       )}
 
       <div className="card p-6">
-        <h2 className="font-semibold text-foreground mb-4">Add a member</h2>
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+          <h2 className="font-semibold text-foreground">Add a member</h2>
+        </div>
         <AddMemberForm onAdded={load} />
       </div>
+
+      <MemberImport onImported={load} />
 
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <input
