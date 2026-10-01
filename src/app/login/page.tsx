@@ -23,6 +23,13 @@ function LoginForm() {
       setError(result.error);
       return;
     }
+    // A platform admin isn't scoped to any church, so /admin (which assumes
+    // one) isn't where they belong — send them to the master dashboard
+    // instead, ignoring any `next` param a church-admin link might have set.
+    if (result.user?.isPlatformAdmin) {
+      router.replace("/platform");
+      return;
+    }
     router.replace(searchParams.get("next") || "/admin");
   }
 

@@ -9,6 +9,10 @@ export type AuthUser = {
   username: string;
   role: "admin" | "usher";
   churchName?: string | null;
+  // True only for the handful of platform-operator accounts created via
+  // `npm run seed:platform-admin` — completely separate from a church's own
+  // `role: "admin"`. Routes the person to /platform instead of /admin.
+  isPlatformAdmin?: boolean;
 };
 
 export type SignupInput = {
@@ -24,7 +28,7 @@ export type SignupInput = {
 type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
-  login: (username: string, password: string) => Promise<{ error?: string }>;
+  login: (username: string, password: string) => Promise<{ error?: string; user?: AuthUser }>;
   signup: (input: SignupInput) => Promise<{ error?: string }>;
   logout: () => void;
 };
@@ -56,7 +60,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       setToken(res.token);
       setUser(res.user);
-      return {};
+      // Return the freshly-fetched user directly (not just via state) so a
+      // caller can branch on it in the same tick — `setUser` above won't be
+      // reflected in `user` from this closure until the next render.
+      return { user: res.user };
     } catch (err) {
       return { error: err instanceof ApiError ? err.message : "Couldn't sign in — try again." };
     }
