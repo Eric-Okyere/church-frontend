@@ -21,6 +21,21 @@ type Member = {
   createdAt: string;
 };
 
+// A member's child, dependent — added from that member's own profile page
+// (ChildrenSection), but surfaced here too, clearly marked, so the Members
+// page is a complete picture of everyone registered, not members-only.
+type ChildRow = {
+  id: string;
+  name: string;
+  parentMemberId: string;
+  parentName: string | null;
+  parentPhone: string | null;
+  active: boolean;
+  createdAt: string;
+};
+
+type ListRow = { kind: "member"; member: Member } | { kind: "child"; child: ChildRow };
+
 type SortKey = "name" | "newest" | "oldest" | "department";
 
 const SORT_LABELS: Record<SortKey, string> = {
@@ -33,49 +48,75 @@ const SORT_LABELS: Record<SortKey, string> = {
 export default function MembersPage() {
   const [active, setActive] = useState<Member[] | null>(null);
   const [inactive, setInactive] = useState<Member[]>([]);
+  const [activeChildren, setActiveChildren] = useState<ChildRow[]>([]);
+  const [inactiveChildren, setInactiveChildren] = useState<ChildRow[]>([]);
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("name");
 
   async function load() {
-    const [activeRes, inactiveRes] = await Promise.all([
+    const [activeRes, inactiveRes, activeChildrenRes, inactiveChildrenRes] = await Promise.all([
       api.get<{ members: Member[] }>("/api/members?active=true"),
       api.get<{ members: Member[] }>("/api/members?active=false"),
+      api.get<{ children: ChildRow[] }>("/api/children?active=true"),
+      api.get<{ children: ChildRow[] }>("/api/children?active=false"),
     ]);
     setActive(activeRes.members);
     setInactive(inactiveRes.members);
+    setActiveChildren(activeChildrenRes.children);
+    setInactiveChildren(inactiveChildrenRes.children);
   }
 
   useEffect(() => {
     load();
   }, []);
 
-  const filteredSortedActive = useMemo(() => {
+  const filteredSortedRows = useMemo(() => {
     if (!active) return null;
     const q = query.trim().toLowerCase();
-    const filtered = q
-      ? active.filter(
-          (m) =>
-            m.name.toLowerCase().includes(q) ||
-            (m.phone || "").toLowerCase().includes(q) ||
-            (m.email || "").toLowerCase().includes(q)
-        )
-      : active;
-    const sorted = [...filtered];
-    sorted.sort((a, b) => {
+
+    const memberRows: ListRow[] = active
+      .filter(
+        (m) =>
+          !q ||
+          m.name.toLowerCase().includes(q) ||
+          (m.phone || "").toLowerCase().includes(q) ||
+          (m.email || "").toLowerCase().includes(q)
+      )
+      .map((member) => ({ kind: "member" as const, member }));
+
+    const childRows: ListRow[] = activeChildren
+      .filter(
+        (c) =>
+          !q ||
+          c.name.toLowerCase().includes(q) ||
+          (c.parentName || "").toLowerCase().includes(q) ||
+          (c.parentPhone || "").toLowerCase().includes(q)
+      )
+      .map((child) => ({ kind: "child" as const, child }));
+
+    const rows = [...memberRows, ...childRows];
+    const nameOf = (r: ListRow) => (r.kind === "member" ? r.member.name : r.child.name);
+    const createdAtOf = (r: ListRow) => (r.kind === "member" ? r.member.createdAt : r.child.createdAt);
+    // A child has no department of their own — they sort into the same
+    // "no department" bucket a department-less member already falls into,
+    // rather than needing a special case.
+    const departmentOf = (r: ListRow) => (r.kind === "member" ? r.member.department : null);
+
+    rows.sort((a, b) => {
       switch (sortBy) {
         case "newest":
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          return new Date(createdAtOf(b)).getTime() - new Date(createdAtOf(a)).getTime();
         case "oldest":
-          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          return new Date(createdAtOf(a)).getTime() - new Date(createdAtOf(b)).getTime();
         case "department":
-          return (a.department || "￿").localeCompare(b.department || "￿") || a.name.localeCompare(b.name);
+          return (departmentOf(a) || "￿").localeCompare(departmentOf(b) || "￿") || nameOf(a).localeCompare(nameOf(b));
         case "name":
         default:
-          return a.name.localeCompare(b.name);
+          return nameOf(a).localeCompare(nameOf(b));
       }
     });
-    return sorted;
-  }, [active, query, sortBy]);
+    return rows;
+  }, [active, activeChildren, query, sortBy]);
 
   const departmentChartData = useMemo(() => {
     if (!active) return [];
@@ -137,9 +178,9 @@ export default function MembersPage() {
 
       <div className="card p-6">
         <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-          <h2 className="font-semibold text-foreground">Add a member or child</h2>
+          <h2 className="font-semibold text-foreground">Add a member</h2>
         </div>
-        <AddMemberForm onAdded={load} members={active ?? []} />
+        <AddMemberForm onAdded={load} />
       </div>
 
       <MemberImport onImported={load} />
@@ -165,62 +206,118 @@ export default function MembersPage() {
       </div>
 
       <div className="card divide-y divide-border">
-        {filteredSortedActive === null && <p className="p-5 text-sm text-muted">Loading…</p>}
-        {filteredSortedActive?.length === 0 && (
+        {filteredSortedRows === null && <p className="p-5 text-sm text-muted">Loading…</p>}
+        {filteredSortedRows?.length === 0 && (
           <p className="p-5 text-sm text-muted">
-            {query ? "No members match your search." : "No members yet — add your first one above."}
+            {query ? "No members or children match your search." : "No members yet — add your first one above."}
           </p>
         )}
-        {filteredSortedActive?.map((m) => (
-          <div key={m.id} className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-primary-soft/40 transition-colors">
-            <Link href={`/admin/members/${m.id}`} className="min-w-0 flex-1">
-              <p className="font-medium text-foreground truncate">{m.name}</p>
-              <p className="text-xs text-muted truncate">
-                {m.phone || m.email || "No contact info"}
-                {m.gender ? ` · ${m.gender}` : ""}
-                {m.department ? ` · ${m.department}` : ""}
-              </p>
-            </Link>
-            <div className="flex items-center gap-2 shrink-0">
-              {m.phone && (
-                <>
-                  <a
-                    href={telHref(m.phone)}
-                    onClick={(e) => e.stopPropagation()}
-                    className="btn btn-secondary !px-2.5 !py-1.5 text-xs"
-                    title={`Call ${m.name}`}
-                  >
-                    📞
-                  </a>
-                  <a
-                    href={whatsappHref(m.phone)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="btn btn-secondary !px-2.5 !py-1.5 text-xs"
-                    title={`WhatsApp ${m.name}`}
-                  >
-                    💬
-                  </a>
-                </>
-              )}
-              <Link href={`/admin/members/${m.id}`} className="text-xs font-semibold text-primary whitespace-nowrap">
-                View →
+        {filteredSortedRows?.map((row) =>
+          row.kind === "member" ? (
+            <div
+              key={`m-${row.member.id}`}
+              className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-primary-soft/40 transition-colors"
+            >
+              <Link href={`/admin/members/${row.member.id}`} className="min-w-0 flex-1">
+                <p className="font-medium text-foreground truncate">{row.member.name}</p>
+                <p className="text-xs text-muted truncate">
+                  {row.member.phone || row.member.email || "No contact info"}
+                  {row.member.gender ? ` · ${row.member.gender}` : ""}
+                  {row.member.department ? ` · ${row.member.department}` : ""}
+                </p>
               </Link>
+              <div className="flex items-center gap-2 shrink-0">
+                {row.member.phone && (
+                  <>
+                    <a
+                      href={telHref(row.member.phone)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="btn btn-secondary !px-2.5 !py-1.5 text-xs"
+                      title={`Call ${row.member.name}`}
+                    >
+                      📞
+                    </a>
+                    <a
+                      href={whatsappHref(row.member.phone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="btn btn-secondary !px-2.5 !py-1.5 text-xs"
+                      title={`WhatsApp ${row.member.name}`}
+                    >
+                      💬
+                    </a>
+                  </>
+                )}
+                <Link href={`/admin/members/${row.member.id}`} className="text-xs font-semibold text-primary whitespace-nowrap">
+                  View →
+                </Link>
+              </div>
             </div>
-          </div>
-        ))}
+          ) : (
+            <div
+              key={`c-${row.child.id}`}
+              className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-primary-soft/40 transition-colors"
+            >
+              <Link href={`/admin/members/${row.child.parentMemberId}`} className="min-w-0 flex-1">
+                <p className="font-medium text-foreground truncate">
+                  {row.child.name} <span className="badge badge-muted">Child</span>
+                </p>
+                <p className="text-xs text-muted truncate">Child of {row.child.parentName || "unknown parent"}</p>
+              </Link>
+              <div className="flex items-center gap-2 shrink-0">
+                {row.child.parentPhone && (
+                  <>
+                    <a
+                      href={telHref(row.child.parentPhone)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="btn btn-secondary !px-2.5 !py-1.5 text-xs"
+                      title={`Call ${row.child.parentName || "parent"}`}
+                    >
+                      📞
+                    </a>
+                    <a
+                      href={whatsappHref(row.child.parentPhone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="btn btn-secondary !px-2.5 !py-1.5 text-xs"
+                      title={`WhatsApp ${row.child.parentName || "parent"}`}
+                    >
+                      💬
+                    </a>
+                  </>
+                )}
+                <Link href={`/admin/members/${row.child.parentMemberId}`} className="text-xs font-semibold text-primary whitespace-nowrap">
+                  View parent →
+                </Link>
+              </div>
+            </div>
+          )
+        )}
       </div>
 
-      {inactive.length > 0 && (
+      {(inactive.length > 0 || inactiveChildren.length > 0) && (
         <details className="card p-5">
           <summary className="cursor-pointer text-sm font-medium text-muted">
             {inactive.length} inactive member{inactive.length === 1 ? "" : "s"}
+            {inactiveChildren.length > 0
+              ? ` · ${inactiveChildren.length} inactive child${inactiveChildren.length === 1 ? "" : "ren"}`
+              : ""}
           </summary>
           <div className="flex flex-col divide-y divide-border mt-3">
             {inactive.map((m) => (
-              <Link key={m.id} href={`/admin/members/${m.id}`} className="py-2 text-sm text-muted hover:text-foreground">
+              <Link key={`m-${m.id}`} href={`/admin/members/${m.id}`} className="py-2 text-sm text-muted hover:text-foreground">
                 {m.name}
+              </Link>
+            ))}
+            {inactiveChildren.map((c) => (
+              <Link
+                key={`c-${c.id}`}
+                href={`/admin/members/${c.parentMemberId}`}
+                className="py-2 text-sm text-muted hover:text-foreground"
+              >
+                {c.name} <span className="text-xs">· Child of {c.parentName || "unknown parent"}</span>
               </Link>
             ))}
           </div>
