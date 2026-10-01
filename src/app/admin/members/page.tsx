@@ -47,6 +47,10 @@ const SORT_LABELS: Record<SortKey, string> = {
   department: "Department",
 };
 
+// Same enum every "Department" field in the app already uses (Member and
+// Child forms alike) — a filter here must offer exactly these, nothing more.
+const DEPARTMENTS = ["Youth", "Children", "Men", "Leader", "Women"];
+
 export default function MembersPage() {
   const [active, setActive] = useState<Member[] | null>(null);
   const [inactive, setInactive] = useState<Member[]>([]);
@@ -54,6 +58,7 @@ export default function MembersPage() {
   const [inactiveChildren, setInactiveChildren] = useState<ChildRow[]>([]);
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("name");
+  const [departmentFilter, setDepartmentFilter] = useState("");
 
   async function load() {
     const [activeRes, inactiveRes, activeChildrenRes, inactiveChildrenRes] = await Promise.all([
@@ -96,13 +101,17 @@ export default function MembersPage() {
       )
       .map((child) => ({ kind: "child" as const, child }));
 
-    const rows = [...memberRows, ...childRows];
     const nameOf = (r: ListRow) => (r.kind === "member" ? r.member.name : r.child.name);
     const createdAtOf = (r: ListRow) => (r.kind === "member" ? r.member.createdAt : r.child.createdAt);
     // A child can now have their own department too — fall back to the same
     // "no department" bucket a department-less member already falls into
     // only when the child's own field is unset.
     const departmentOf = (r: ListRow) => (r.kind === "member" ? r.member.department : r.child.department);
+
+    let rows = [...memberRows, ...childRows];
+    if (departmentFilter) {
+      rows = rows.filter((r) => departmentOf(r) === departmentFilter);
+    }
 
     rows.sort((a, b) => {
       switch (sortBy) {
@@ -118,7 +127,7 @@ export default function MembersPage() {
       }
     });
     return rows;
-  }, [active, activeChildren, query, sortBy]);
+  }, [active, activeChildren, query, sortBy, departmentFilter]);
 
   const departmentChartData = useMemo(() => {
     if (!active) return [];
@@ -131,6 +140,20 @@ export default function MembersPage() {
       .sort((a, b) => b[1] - a[1])
       .map(([label, value]) => ({ label, value }));
   }, [active]);
+
+  // Separate from the member chart above (kept exactly as it was) — a
+  // church wanted to see children's own department split out on its own,
+  // not merged into the member count.
+  const childDepartmentChartData = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const c of activeChildren) {
+      const key = c.department || "No department";
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, value]) => ({ label, value }));
+  }, [activeChildren]);
 
   // Fixed order (Male, Female, Not specified) so a gender's color/position
   // never shifts as counts change — same convention as the analytics
@@ -149,6 +172,12 @@ export default function MembersPage() {
   }, [active]);
 
   const totalCount = (active?.length ?? 0) + inactive.length;
+  const showChildChart = activeChildren.length > 0;
+
+  let emptyMessage = "No members yet — add your first one above.";
+  if (query && departmentFilter) emptyMessage = "No members or children match your search in that department.";
+  else if (query) emptyMessage = "No members or children match your search.";
+  else if (departmentFilter) emptyMessage = "No members or children in that department yet.";
 
   return (
     <div className="flex flex-col gap-6">
@@ -163,18 +192,29 @@ export default function MembersPage() {
         <StatTile label="Inactive" value={inactive.length.toLocaleString()} />
       </div>
 
-      {active !== null && active.length > 0 && (
-        <div className="grid lg:grid-cols-2 gap-4">
-          <div className="card p-6">
-            <h2 className="font-semibold text-foreground mb-1">Members by department</h2>
-            <p className="text-xs text-muted mb-4">Active members only.</p>
-            <MagnitudeBarChart data={departmentChartData} />
-          </div>
-          <div className="card p-6">
-            <h2 className="font-semibold text-foreground mb-1">Members by gender</h2>
-            <p className="text-xs text-muted mb-4">Active members only.</p>
-            <CategoricalBreakdownChart data={genderChartData} />
-          </div>
+      {((active !== null && active.length > 0) || showChildChart) && (
+        <div className={`grid gap-4 ${showChildChart ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
+          {active !== null && active.length > 0 && (
+            <div className="card p-6">
+              <h2 className="font-semibold text-foreground mb-1">Members by department</h2>
+              <p className="text-xs text-muted mb-4">Active members only.</p>
+              <MagnitudeBarChart data={departmentChartData} />
+            </div>
+          )}
+          {active !== null && active.length > 0 && (
+            <div className="card p-6">
+              <h2 className="font-semibold text-foreground mb-1">Members by gender</h2>
+              <p className="text-xs text-muted mb-4">Active members only.</p>
+              <CategoricalBreakdownChart data={genderChartData} />
+            </div>
+          )}
+          {showChildChart && (
+            <div className="card p-6">
+              <h2 className="font-semibold text-foreground mb-1">Children by department</h2>
+              <p className="text-xs text-muted mb-4">Active children only.</p>
+              <MagnitudeBarChart data={childDepartmentChartData} />
+            </div>
+          )}
         </div>
       )}
 
@@ -187,7 +227,7 @@ export default function MembersPage() {
 
       <MemberImport onImported={load} />
 
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between flex-wrap">
         <input
           type="search"
           placeholder="Search by name, phone, or email…"
@@ -195,25 +235,38 @@ export default function MembersPage() {
           onChange={(e) => setQuery(e.target.value)}
           className="input sm:max-w-xs"
         />
-        <label className="flex items-center gap-2 text-sm text-muted">
-          Sort by
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortKey)} className="input !w-auto py-1.5">
-            {Object.entries(SORT_LABELS).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="flex items-center gap-3 flex-wrap">
+          <label className="flex items-center gap-2 text-sm text-muted">
+            Department
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="input !w-auto py-1.5"
+            >
+              <option value="">All departments</option>
+              {DEPARTMENTS.map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-muted">
+            Sort by
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortKey)} className="input !w-auto py-1.5">
+              {Object.entries(SORT_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       <div className="card divide-y divide-border">
         {filteredSortedRows === null && <p className="p-5 text-sm text-muted">Loading…</p>}
-        {filteredSortedRows?.length === 0 && (
-          <p className="p-5 text-sm text-muted">
-            {query ? "No members or children match your search." : "No members yet — add your first one above."}
-          </p>
-        )}
+        {filteredSortedRows?.length === 0 && <p className="p-5 text-sm text-muted">{emptyMessage}</p>}
         {filteredSortedRows?.map((row) =>
           row.kind === "member" ? (
             <div
