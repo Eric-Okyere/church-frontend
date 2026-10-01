@@ -198,7 +198,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
           <Image src="/linkpii-logo.jpg" alt="Linkpii" width={48} height={48} className="rounded-full object-cover mb-3" />
-          <h1 className="text-xl font-semibold text-foreground">GraceTrack</h1>
+          <h1 className="text-xl font-semibold text-foreground">Linkpii Church Management</h1>
           <p className="text-sm text-muted mt-1">Sign in to manage attendance</p>
         </div>
 

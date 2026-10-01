@@ -20,7 +20,7 @@ export function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
-// GraceTrack assumes Ghanaian phone numbers by default — a leading "0"
+// Linkpii Church Management assumes Ghanaian phone numbers by default — a leading "0"
 // local format and the +233 country code — since that's this platform's
 // primary market today. If a church's members use a different country's
 // numbers, the WhatsApp link built below will come out wrong; swap in a

@@ -186,7 +186,7 @@ export default function SettingsPage() {
             className="input"
             placeholder="024 123 4567"
           />
-          <p className="text-xs text-muted">So GraceTrack can reach your church directly if we ever need to.</p>
+          <p className="text-xs text-muted">So Linkpii Church Management can reach your church directly if we ever need to.</p>
         </div>
 
         <div className="border-t border-border pt-4 flex flex-col gap-2">

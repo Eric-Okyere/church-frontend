@@ -1,6 +1,6 @@
-# GraceTrack — church-frontend
+# Linkpii Church Management — church-frontend
 
-The frontend for GraceTrack: member management, live attendance dashboard,
+The frontend for Linkpii Church Management: member management, live attendance dashboard,
 QR check-in kiosk, and the public self-check-in page. Talks to the
 `church-backend` API over HTTP — it has no database connection or secrets of
 its own, which is what lets it deploy as a plain static/client-rendered site

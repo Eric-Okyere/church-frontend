@@ -8,7 +8,7 @@ import Image from "next/image";
 // Deliberately shows the SAME success message whether or not the email is
 // actually on an account — the backend responds identically either way
 // (see POST /api/auth/forgot-password) so this page can't be used to probe
-// which emails have GraceTrack accounts.
+// which emails have Linkpii Church Management accounts.
 export default function ForgotPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);

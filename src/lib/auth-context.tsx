@@ -24,7 +24,7 @@ export type SignupInput = {
   adminName: string;
   username: string;
   email: string;
-  // Optional — the church's own contact number, so GraceTrack/Linkpii can
+  // Optional — the church's own contact number, so Linkpii Church Management can
   // reach them (e.g. about payment or support). Not required at signup;
   // can be added/changed anytime from Settings.
   phone?: string;

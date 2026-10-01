@@ -58,7 +58,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-8">
             <Link href="/admin" className="flex items-center gap-2 font-semibold text-foreground">
               <Image src="/linkpii-logo.jpg" alt="Linkpii" width={32} height={32} className="rounded-full object-cover" />
-              GraceTrack
+              Linkpii Church Management
             </Link>
             <nav className="hidden sm:flex items-center gap-1 text-sm">
               {visibleItems.map((item) => (

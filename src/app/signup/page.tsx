@@ -153,7 +153,7 @@ export default function SignupPage() {
           <Image src="/linkpii-logo.jpg" alt="Linkpii" width={48} height={48} className="rounded-full object-cover mb-3" />
           <h1 className="text-xl font-semibold text-foreground">Create your church&apos;s account</h1>
           <p className="text-sm text-muted mt-1 text-center">
-            Set up GraceTrack for your congregation — your members and attendance stay private to your church.
+            Set up Linkpii Church Management for your congregation — your members and attendance stay private to your church.
           </p>
         </div>
 
@@ -189,7 +189,7 @@ export default function SignupPage() {
                 className="input"
                 placeholder="ama_admin"
               />
-              <p className="text-xs text-muted">Usernames are shared across every church on GraceTrack, so pick something distinctive.</p>
+              <p className="text-xs text-muted">Usernames are shared across every church on Linkpii Church Management, so pick something distinctive.</p>
             </div>
 
             <div className="flex flex-col gap-1.5">

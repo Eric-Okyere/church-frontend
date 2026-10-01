@@ -5,7 +5,7 @@ import Footer from "@/components/Footer";
 import RefreshButton from "@/components/RefreshButton";
 
 export const metadata: Metadata = {
-  title: "GraceTrack — Church Attendance",
+  title: "Linkpii Church Management",
   description: "Fast, modern attendance tracking for your congregation.",
 };
 

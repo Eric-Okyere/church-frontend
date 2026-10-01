@@ -25,7 +25,7 @@ type Church = {
 
 // Every registered church on the platform — who's signed up, whether
 // they've paid (a manual status the platform admin sets themselves; see
-// Church.js — there's no payment gateway wired into GraceTrack yet), and
+// Church.js — there's no payment gateway wired into Linkpii Church Management yet), and
 // how many active members they have. This is the ONE dashboard that spans
 // every church at once; everything else in the app is deliberately scoped
 // to a single church.
@@ -97,7 +97,7 @@ export default function PlatformDashboard() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">All churches</h1>
-        <p className="text-muted text-sm mt-1">Every church registered on GraceTrack, and whether they&apos;ve paid.</p>
+        <p className="text-muted text-sm mt-1">Every church registered on Linkpii Church Management, and whether they&apos;ve paid.</p>
       </div>
 
       {loadError && <div className="text-sm text-danger bg-danger-soft rounded-lg px-3 py-2">{loadError}</div>}
