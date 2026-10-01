@@ -1,18 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f7fb;
+  /* Linkpii brand palette — gold/black/white, sampled from the logo and
+     adjusted for WCAG AA contrast (every text/background pairing below
+     is ≥4.5:1 — see the project doc for the exact numbers). */
+  --background: #faf8f7;
   --surface: #ffffff;
-  --foreground: #1b1b2b;
-  --muted: #6b6b83;
-  --border: #e6e6f0;
-  --primary: #4f46e5;
-  --primary-hover: #4338ca;
-  --primary-soft: #eef0ff;
+  --foreground: #1f130f;
+  --muted: #78655e;
+  --border: #ebe3e0;
+  --primary: #9b6308;
+  --primary-hover: #7e5107;
+  --primary-soft: #fbf2e4;
   --success: #16a34a;
   --success-soft: #ecfdf3;
-  --warning: #d97706;
-  --warning-soft: #fffaeb;
+  --warning: #b83c14;
+  --warning-soft: #fbeeea;
   --danger: #dc2626;
   --danger-soft: #fef2f2;
 }
