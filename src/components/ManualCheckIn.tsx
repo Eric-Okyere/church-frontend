@@ -1,8 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { api, ApiError } from "@/lib/api";
-import { premisesErrorMessage, reasonFromError, useAdminLocation } from "@/lib/geolocation";
+import { api } from "@/lib/api";
 
 type Member = {
   id: string;
@@ -32,10 +31,6 @@ export default function ManualCheckIn({ serviceId }: { serviceId: string }) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showVisitor, setShowVisitor] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Requires the admin's own device to be at the church before any of the
-  // check-in actions below will succeed — one location fix per page visit,
-  // same "not walking around mid-service" reasoning as the QR scanner.
-  const { coordsRef, locationError, retryLocation } = useAdminLocation();
 
   function onQueryChange(value: string) {
     setQuery(value);
@@ -64,22 +59,20 @@ export default function ManualCheckIn({ serviceId }: { serviceId: string }) {
   }
 
   async function checkIn(row: ResultRow) {
-    const coords = coordsRef.current;
     setMessage(null);
     setErrorMessage(null);
     try {
       const result = await api.post<CheckInResult>("/api/attendance/manual", {
         ...(row.kind === "member" ? { memberId: row.id } : { childId: row.id }),
         serviceId,
-        ...(coords ? { lat: coords.lat, lng: coords.lng } : {}),
       });
       if (result.ok) {
         setMessage(result.alreadyIn ? `${result.memberName} was already checked in.` : `${result.memberName} checked in ✓`);
       } else {
         setErrorMessage("Couldn't check in — please try again.");
       }
-    } catch (err) {
-      setErrorMessage(err instanceof ApiError && err.status === 403 ? premisesErrorMessage(reasonFromError(err)) : "Couldn't check in — please try again.");
+    } catch {
+      setErrorMessage("Couldn't check in — please try again.");
     }
     setQuery("");
     setResults([]);
@@ -87,15 +80,6 @@ export default function ManualCheckIn({ serviceId }: { serviceId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {locationError && (
-        <div className="text-sm text-danger bg-danger-soft rounded-lg px-3 py-2 flex items-center justify-between gap-3">
-          <span>{locationError}</span>
-          <button className="font-semibold hover:underline shrink-0" onClick={retryLocation}>
-            Try again
-          </button>
-        </div>
-      )}
-
       <div>
         <input
           className="input"
@@ -142,7 +126,6 @@ export default function ManualCheckIn({ serviceId }: { serviceId: string }) {
         ) : (
           <VisitorForm
             serviceId={serviceId}
-            coordsRef={coordsRef}
             onDone={(msg) => {
               setMessage(msg);
               setErrorMessage(null);
@@ -157,11 +140,9 @@ export default function ManualCheckIn({ serviceId }: { serviceId: string }) {
 
 function VisitorForm({
   serviceId,
-  coordsRef,
   onDone,
 }: {
   serviceId: string;
-  coordsRef: React.RefObject<{ lat: number; lng: number } | null>;
   onDone: (msg: string) => void;
 }) {
   const [name, setName] = useState("");
@@ -174,11 +155,10 @@ function VisitorForm({
     setPending(true);
     setError(null);
     try {
-      const coords = coordsRef.current;
-      await api.post("/api/attendance/visitor", { serviceId, name, phone, ...(coords ? { lat: coords.lat, lng: coords.lng } : {}) });
+      await api.post("/api/attendance/visitor", { serviceId, name, phone });
       onDone(`${name} checked in as a visitor ✓`);
-    } catch (err) {
-      setError(err instanceof ApiError && err.status === 403 ? premisesErrorMessage(reasonFromError(err)) : "Couldn't add them — please try again.");
+    } catch {
+      setError("Couldn't add them — please try again.");
     } finally {
       setPending(false);
     }

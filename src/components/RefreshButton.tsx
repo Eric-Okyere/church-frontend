@@ -1,15 +1,25 @@
 "use client";
 
+import { usePathname } from "next/navigation";
+
 // A single, always-present way to reload the page — deliberately a full
 // `window.location.reload()` rather than re-fetching each page's own data
 // in place. The main real-world use case is a kiosk/tablet running this
 // app in a browser with no visible address bar or reload control (kiosk
 // mode, a pinned tab, a PWA) — this button is the only way to force a
 // fresh load without underlying browser chrome. Rendered once in the root
-// layout, so it shows on every single page (login, signup, every admin
-// page, /scan, /c/[token], /venue and /venue/[slug]) without needing to be
-// added to each one individually — same pattern as the Footer.
+// layout, so it shows on every admin page, /scan, /c/[token], /venue and
+// /venue/[slug] without needing to be added to each one individually —
+// same pattern as the Footer — except the public-facing pages (the
+// landing page "/", "/login", and "/signup"), which all hide it: none of
+// those are kiosk screens, so a reload control there is just clutter for
+// a signed-out visitor.
+const HIDDEN_PATHS = ["/", "/login", "/signup"];
+
 export default function RefreshButton() {
+  const pathname = usePathname();
+  if (HIDDEN_PATHS.includes(pathname ?? "")) return null;
+
   return (
     <button
       onClick={() => window.location.reload()}

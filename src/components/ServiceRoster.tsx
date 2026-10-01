@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, ApiError } from "@/lib/api";
+import { api } from "@/lib/api";
 import { telHref, whatsappHref } from "@/lib/utils";
-import { premisesErrorMessage, reasonFromError, useAdminLocation } from "@/lib/geolocation";
 
 type RosterMember = {
   id: string;
@@ -49,14 +48,12 @@ export default function ServiceRoster({ serviceId }: { serviceId: string }) {
   const [query, setQuery] = useState("");
   // One-click "Mark present" straight from the Absent list — an usher can
   // already see the name here, so there's no need to send them over to the
-  // search box below to check someone in. Reuses the exact same
-  // admin-on-premises manual check-in route (`/api/attendance/manual`) that
-  // powers that search box, so it's still gated by the same location
-  // requirement and still records `checkedInByName` for this usher.
+  // search box below to check someone in. Reuses the exact same manual
+  // check-in route (`/api/attendance/manual`) that powers that search box,
+  // so it still records `checkedInByName` for this usher.
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const { coordsRef, locationError, retryLocation } = useAdminLocation();
 
   const load = useCallback(async () => {
     const res = await api.get<AttendanceResponse>(`/api/services/${serviceId}/attendance`);
@@ -83,11 +80,9 @@ export default function ServiceRoster({ serviceId }: { serviceId: string }) {
     setActionMessage(null);
     setActionError(null);
     try {
-      const coords = coordsRef.current;
       const result = await api.post<ManualCheckInResult>("/api/attendance/manual", {
         memberId: member.id,
         serviceId,
-        ...(coords ? { lat: coords.lat, lng: coords.lng } : {}),
       });
       if (result.ok) {
         setActionMessage(result.alreadyIn ? `${member.name} was already checked in.` : `${member.name} marked present ✓`);
@@ -95,12 +90,8 @@ export default function ServiceRoster({ serviceId }: { serviceId: string }) {
       } else {
         setActionError(`Couldn't mark ${member.name} present — please try again.`);
       }
-    } catch (err) {
-      setActionError(
-        err instanceof ApiError && err.status === 403
-          ? premisesErrorMessage(reasonFromError(err))
-          : `Couldn't mark ${member.name} present — please try again.`
-      );
+    } catch {
+      setActionError(`Couldn't mark ${member.name} present — please try again.`);
     } finally {
       setCheckingInId(null);
     }
@@ -118,14 +109,6 @@ export default function ServiceRoster({ serviceId }: { serviceId: string }) {
         />
       </div>
 
-      {tab === "absent" && locationError && (
-        <div className="text-sm text-danger bg-danger-soft rounded-lg px-3 py-2 flex items-center justify-between gap-3 mb-4">
-          <span>{locationError}</span>
-          <button className="font-semibold hover:underline shrink-0" onClick={retryLocation}>
-            Try again
-          </button>
-        </div>
-      )}
       {actionMessage && <p className="text-sm text-success mb-3">{actionMessage}</p>}
       {actionError && <p className="text-sm text-danger mb-3">{actionError}</p>}
 
