@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
-import { formatDate } from "@/lib/utils";
+import { formatDate, telHref, whatsappHref } from "@/lib/utils";
 import { StatTile } from "@/components/charts/StatTile";
 
 type PaymentStatus = "paid" | "unpaid";
@@ -12,6 +12,7 @@ type Church = {
   id: string;
   name: string;
   slug: string;
+  phone: string | null;
   active: boolean;
   createdAt: string;
   memberCount: number;
@@ -204,10 +205,36 @@ function ChurchRow({
             )}
             {" · registered "}
             {formatDate(church.createdAt)}
+            {church.phone && (
+              <>
+                {" · "}
+                {church.phone}
+              </>
+            )}
           </p>
           {church.paymentNote && !editing && <p className="text-xs text-muted mt-0.5">Note: {church.paymentNote}</p>}
         </div>
         <div className="flex items-center gap-3 shrink-0">
+          {church.phone && !editing && (
+            <>
+              <a
+                href={telHref(church.phone)}
+                className="btn btn-secondary !px-2.5 !py-1.5 text-xs whitespace-nowrap"
+                title={`Call ${church.name}`}
+              >
+                📞 Call
+              </a>
+              <a
+                href={whatsappHref(church.phone, `Hi ${church.name}, `)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-secondary !px-2.5 !py-1.5 text-xs whitespace-nowrap"
+                title={`WhatsApp ${church.name}`}
+              >
+                💬 WhatsApp
+              </a>
+            </>
+          )}
           <p className="text-sm text-foreground font-medium">{church.memberCount}</p>
           <p className="text-xs text-muted">members</p>
           {!editing && (

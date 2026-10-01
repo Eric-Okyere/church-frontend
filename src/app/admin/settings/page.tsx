@@ -7,6 +7,7 @@ type ChurchSettings = {
   id: string;
   name: string;
   slug: string;
+  phone: string | null;
   latitude: number | null;
   longitude: number | null;
   radiusMeters: number;
@@ -24,6 +25,12 @@ export default function SettingsPage() {
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState<string | null>(null);
 
+  const [email, setEmail] = useState("");
+  const [emailSaved, setEmailSaved] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSuccess, setEmailSuccess] = useState(false);
+  const [emailPending, setEmailPending] = useState(false);
+
   useEffect(() => {
     api
       .get<{ church: ChurchSettings }>("/api/church/settings")
@@ -33,7 +40,33 @@ export default function SettingsPage() {
         setLongitude(res.church.longitude !== null ? String(res.church.longitude) : "");
       })
       .catch((err) => setLoadError(err instanceof ApiError ? err.message : "Couldn't load your church's settings."));
+
+    api
+      .get<{ user: { email: string | null } }>("/api/auth/profile")
+      .then((res) => {
+        setEmailSaved(res.user.email);
+        setEmail(res.user.email || "");
+      })
+      .catch(() => {
+        /* Non-fatal — the email card just shows blank if this fails. */
+      });
   }, []);
+
+  async function onSaveEmail(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setEmailError(null);
+    setEmailSuccess(false);
+    setEmailPending(true);
+    try {
+      const res = await api.patch<{ user: { email: string | null } }>("/api/auth/profile", { email });
+      setEmailSaved(res.user.email);
+      setEmailSuccess(true);
+    } catch (err) {
+      setEmailError(err instanceof ApiError ? err.message : "Couldn't save — try again.");
+    } finally {
+      setEmailPending(false);
+    }
+  }
 
   function useMyLocation() {
     if (!("geolocation" in navigator)) {
@@ -65,6 +98,7 @@ export default function SettingsPage() {
     try {
       const res = await api.patch<{ church: ChurchSettings }>("/api/church/settings", {
         name: String(form.get("name") || ""),
+        phone: String(form.get("phone") || ""),
         latitude: latitude === "" ? null : Number(latitude),
         longitude: longitude === "" ? null : Number(longitude),
         radiusMeters: Number(form.get("radiusMeters") || 200),
@@ -101,6 +135,33 @@ export default function SettingsPage() {
         <p className="text-sm font-mono bg-primary-soft/40 rounded-lg px-3 py-2 break-all">{venueUrl}</p>
       </div>
 
+      <form onSubmit={onSaveEmail} className="card p-6 flex flex-col gap-3">
+        <h2 className="font-semibold text-foreground">Your account</h2>
+        <p className="text-xs text-muted -mt-1">
+          Used only to send you a password-reset link if you ever forget your password.
+          {!emailSaved && " You don't have one on file yet — add one below."}
+        </p>
+        {emailError && <div className="text-sm text-danger bg-danger-soft rounded-lg px-3 py-2">{emailError}</div>}
+        {emailSuccess && <div className="text-sm text-success bg-success-soft rounded-lg px-3 py-2">Saved.</div>}
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="email" className="text-sm font-medium text-foreground">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="input"
+            placeholder="you@example.com"
+          />
+        </div>
+        <button type="submit" disabled={emailPending} className="btn btn-primary self-start">
+          {emailPending ? "Saving…" : "Save email"}
+        </button>
+      </form>
+
       <form onSubmit={onSubmit} className="card p-6 flex flex-col gap-4">
         {error && <div className="text-sm text-danger bg-danger-soft rounded-lg px-3 py-2">{error}</div>}
         {success && <div className="text-sm text-success bg-success-soft rounded-lg px-3 py-2">Saved.</div>}
@@ -110,6 +171,22 @@ export default function SettingsPage() {
             Church name
           </label>
           <input id="name" name="name" required defaultValue={church.name} className="input" />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="phone" className="text-sm font-medium text-foreground">
+            Phone number <span className="text-muted font-normal">(optional)</span>
+          </label>
+          <input
+            id="phone"
+            name="phone"
+            type="tel"
+            autoComplete="tel"
+            defaultValue={church.phone || ""}
+            className="input"
+            placeholder="024 123 4567"
+          />
+          <p className="text-xs text-muted">So GraceTrack can reach your church directly if we ever need to.</p>
         </div>
 
         <div className="border-t border-border pt-4 flex flex-col gap-2">
