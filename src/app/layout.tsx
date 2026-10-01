@@ -6,7 +6,7 @@ import RefreshButton from "@/components/RefreshButton";
 
 export const metadata: Metadata = {
   title: "Linkpii Church Management",
-  description: "Fast, modern attendance tracking for your congregation.",
+  description: "Attendance, tithes, visitors, and membership management for your congregation.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
