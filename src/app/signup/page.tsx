@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { api, ApiError } from "@/lib/api";
+import Image from "next/image";
 
 type Step = "form" | "code";
 
@@ -149,9 +150,7 @@ export default function SignupPage() {
     <div className="min-h-screen flex items-center justify-center px-4 py-10 bg-background">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center text-xl font-bold mb-3">
-            G
-          </div>
+          <Image src="/linkpii-logo.jpg" alt="Linkpii" width={48} height={48} className="rounded-full object-cover mb-3" />
           <h1 className="text-xl font-semibold text-foreground">Create your church&apos;s account</h1>
           <p className="text-sm text-muted mt-1 text-center">
             Set up GraceTrack for your congregation — your members and attendance stay private to your church.

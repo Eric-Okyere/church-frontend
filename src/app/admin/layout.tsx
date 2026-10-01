@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import RequireAuth from "@/components/RequireAuth";
+import Image from "next/image";
 
 type NavItem = { href: string; label: string; adminOnly?: boolean };
 
@@ -56,9 +57,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
             <Link href="/admin" className="flex items-center gap-2 font-semibold text-foreground">
-              <span className="w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center text-sm font-bold">
-                G
-              </span>
+              <Image src="/linkpii-logo.jpg" alt="Linkpii" width={32} height={32} className="rounded-full object-cover" />
               GraceTrack
             </Link>
             <nav className="hidden sm:flex items-center gap-1 text-sm">

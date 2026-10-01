@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import Image from "next/image";
 
 // Deliberately NOT <RequireAuth> — that component only checks "is someone
 // signed in" and sends anyone who isn't to /login. This page needs a
@@ -50,9 +51,7 @@ function PlatformShell({ children }: { children: React.ReactNode }) {
       <header className="border-b border-border bg-surface sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
           <Link href="/platform" className="flex items-center gap-2 font-semibold text-foreground">
-            <span className="w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center text-sm font-bold">
-              G
-            </span>
+            <Image src="/linkpii-logo.jpg" alt="Linkpii" width={32} height={32} className="rounded-full object-cover" />
             GraceTrack <span className="text-muted font-normal">— Platform admin</span>
           </Link>
           <div className="flex items-center gap-3">

@@ -2,6 +2,7 @@
 
 import { use, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
+import Image from "next/image";
 
 type ChildOption = { id: string; name: string };
 
@@ -237,9 +238,7 @@ export default function VenueCheckInPage({ params }: { params: Promise<{ slug: s
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
       <div className="card p-8 max-w-sm w-full">
         <div className="text-center mb-6">
-          <span className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center text-lg font-bold mx-auto mb-3">
-            G
-          </span>
+          <Image src="/linkpii-logo.jpg" alt="Linkpii" width={48} height={48} className="rounded-full object-cover mx-auto mb-3" />
           <h1 className="text-xl font-semibold text-foreground">Welcome{churchName ? ` to ${churchName}` : ""}!</h1>
           <p className="text-muted text-sm mt-1">
             We&apos;re glad you&apos;re here. Just enter your phone number below to check yourself in — and your
