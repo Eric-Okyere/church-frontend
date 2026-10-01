@@ -58,6 +58,7 @@ export const api = {
     apiFetch<T>(path, { method: "POST", body: body !== undefined ? JSON.stringify(body) : undefined }),
   patch: <T,>(path: string, body?: unknown) =>
     apiFetch<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
+  delete: <T,>(path: string) => apiFetch<T>(path, { method: "DELETE" }),
 };
 
 // CSV export needs an auth header, so a plain <a href> download link won't

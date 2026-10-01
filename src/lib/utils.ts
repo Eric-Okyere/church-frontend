@@ -41,3 +41,11 @@ export function whatsappHref(phone: string, message?: string) {
   const base = `https://wa.me/${international}`;
   return message ? `${base}?text=${encodeURIComponent(message)}` : base;
 }
+
+// Amounts are plain numbers everywhere in the API (no currency field on the
+// records themselves) — GH₵ matches this platform's Ghana-first default
+// used for phone numbers above. If/when a church needs a different
+// currency, this is the one place to make it configurable.
+export function formatMoney(amount: number) {
+  return `GH₵${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
