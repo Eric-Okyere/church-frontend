@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, ApiError } from "@/lib/api";
+import Link from "next/link";
+import { api } from "@/lib/api";
 
 type Child = { id: string; name: string; active: boolean };
 
@@ -61,11 +62,13 @@ function ChildRow({ child, onChanged }: { child: Child; onChanged: () => void })
   );
 }
 
+// Adding a child now happens from the main "Add a member" form on the
+// Members page (switch its toggle to "Child"), which also asks for the
+// parent and snapshots the parent's name/phone onto the new child's own
+// record. This section is read-only: the list, each child's QR code, and
+// deactivate/reactivate — plus a link over to where a new one gets added.
 export default function ChildrenSection({ memberId }: { memberId: string }) {
   const [children, setChildren] = useState<Child[] | null>(null);
-  const [name, setName] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
 
   async function load() {
     const res = await api.get<{ children: Child[] }>(`/api/members/${memberId}/children`);
@@ -77,22 +80,6 @@ export default function ChildrenSection({ memberId }: { memberId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberId]);
 
-  async function addChild(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!name.trim()) return;
-    setPending(true);
-    setError(null);
-    try {
-      await api.post(`/api/members/${memberId}/children`, { name: name.trim() });
-      setName("");
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't add the child — try again.");
-    } finally {
-      setPending(false);
-    }
-  }
-
   return (
     <div className="card p-6">
       <h2 className="font-semibold text-foreground mb-1">Children</h2>
@@ -100,8 +87,6 @@ export default function ChildrenSection({ memberId }: { memberId: string }) {
         Each child gets their own QR code — an usher can scan it directly, or this member can check them in during
         the venue self-check-in flow.
       </p>
-
-      {error && <div className="text-sm text-danger bg-danger-soft rounded-lg px-3 py-2 mb-3">{error}</div>}
 
       <div className="divide-y divide-border">
         {children === null && <p className="text-sm text-muted">Loading…</p>}
@@ -111,17 +96,9 @@ export default function ChildrenSection({ memberId }: { memberId: string }) {
         ))}
       </div>
 
-      <form onSubmit={addChild} className="flex gap-2 mt-4">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="input flex-1"
-          placeholder="Child's name"
-        />
-        <button type="submit" disabled={pending} className="btn btn-secondary">
-          {pending ? "Adding…" : "Add child"}
-        </button>
-      </form>
+      <Link href="/admin/members" className="text-xs font-semibold text-primary hover:underline mt-4 inline-block">
+        + Add a child from the Members page
+      </Link>
     </div>
   );
 }

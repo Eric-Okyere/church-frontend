@@ -137,9 +137,9 @@ export default function MembersPage() {
 
       <div className="card p-6">
         <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-          <h2 className="font-semibold text-foreground">Add a member</h2>
+          <h2 className="font-semibold text-foreground">Add a member or child</h2>
         </div>
-        <AddMemberForm onAdded={load} />
+        <AddMemberForm onAdded={load} members={active ?? []} />
       </div>
 
       <MemberImport onImported={load} />
