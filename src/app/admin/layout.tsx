@@ -12,6 +12,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/services", label: "Services" },
   { href: "/admin/members", label: "Members" },
+  { href: "/admin/visitors", label: "Visitors" },
   { href: "/admin/tithes", label: "Tithes" },
   { href: "/admin/levies", label: "Levies" },
   { href: "/admin/assets", label: "Assets" },
