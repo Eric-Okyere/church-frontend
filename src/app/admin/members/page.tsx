@@ -30,6 +30,8 @@ type ChildRow = {
   parentMemberId: string;
   parentName: string | null;
   parentPhone: string | null;
+  gender: string | null;
+  department: string | null;
   active: boolean;
   createdAt: string;
 };
@@ -97,10 +99,10 @@ export default function MembersPage() {
     const rows = [...memberRows, ...childRows];
     const nameOf = (r: ListRow) => (r.kind === "member" ? r.member.name : r.child.name);
     const createdAtOf = (r: ListRow) => (r.kind === "member" ? r.member.createdAt : r.child.createdAt);
-    // A child has no department of their own — they sort into the same
-    // "no department" bucket a department-less member already falls into,
-    // rather than needing a special case.
-    const departmentOf = (r: ListRow) => (r.kind === "member" ? r.member.department : null);
+    // A child can now have their own department too — fall back to the same
+    // "no department" bucket a department-less member already falls into
+    // only when the child's own field is unset.
+    const departmentOf = (r: ListRow) => (r.kind === "member" ? r.member.department : r.child.department);
 
     rows.sort((a, b) => {
       switch (sortBy) {
@@ -263,7 +265,11 @@ export default function MembersPage() {
                 <p className="font-medium text-foreground truncate">
                   {row.child.name} <span className="badge badge-muted">Child</span>
                 </p>
-                <p className="text-xs text-muted truncate">Child of {row.child.parentName || "unknown parent"}</p>
+                <p className="text-xs text-muted truncate">
+                  Child of {row.child.parentName || "unknown parent"}
+                  {row.child.gender ? ` · ${row.child.gender}` : ""}
+                  {row.child.department ? ` · ${row.child.department}` : ""}
+                </p>
               </Link>
               <div className="flex items-center gap-2 shrink-0">
                 {row.child.parentPhone && (
