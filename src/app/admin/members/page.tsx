@@ -51,6 +51,34 @@ const SORT_LABELS: Record<SortKey, string> = {
 // Child forms alike) — a filter here must offer exactly these, nothing more.
 const DEPARTMENTS = ["Youth", "Children", "Men", "Leader", "Women"];
 
+// Up to two letters for a row's avatar circle — first + last initial, or
+// the first two letters of a single-word name.
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+// A member's avatar is gold (the same accent as the rest of the app); a
+// child's is a quieter neutral tone — a second, softer cue alongside the
+// "Child" badge that doesn't rely on reading text to tell them apart at a
+// glance.
+// Hidden below the `sm` breakpoint — on a narrow phone it only crowds out
+// the name/badge text, which matters more than the decoration there.
+function Avatar({ name, kind }: { name: string; kind: "member" | "child" }) {
+  return (
+    <div
+      className={`hidden sm:flex w-10 h-10 rounded-full items-center justify-center text-sm font-semibold shrink-0 ${
+        kind === "member" ? "bg-primary-soft text-primary" : "bg-border text-muted"
+      }`}
+      aria-hidden="true"
+    >
+      {initials(name)}
+    </div>
+  );
+}
+
 export default function MembersPage() {
   const [active, setActive] = useState<Member[] | null>(null);
   const [inactive, setInactive] = useState<Member[]>([]);
@@ -171,7 +199,9 @@ export default function MembersPage() {
       .map(([label, value]) => ({ label, value }));
   }, [active]);
 
-  const totalCount = (active?.length ?? 0) + inactive.length;
+  const totalMembers = (active?.length ?? 0) + inactive.length;
+  const totalChildren = activeChildren.length + inactiveChildren.length;
+  const totalPeople = totalMembers + totalChildren;
   const showChildChart = activeChildren.length > 0;
 
   let emptyMessage = "No members yet — add your first one above.";
@@ -180,14 +210,21 @@ export default function MembersPage() {
   else if (departmentFilter) emptyMessage = "No members or children in that department yet.";
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Members</h1>
+        <h1 className="text-2xl font-semibold text-foreground tracking-tight">Members</h1>
         <p className="text-muted text-sm mt-1">Everyone registered at your church.</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <StatTile label="Total members" value={active === null ? "…" : totalCount.toLocaleString()} />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="card p-5 border-l-4" style={{ borderLeftColor: "var(--primary)" }}>
+          <p className="text-sm text-muted">Total people</p>
+          <p className="text-3xl font-semibold text-foreground mt-1">{active === null ? "…" : totalPeople.toLocaleString()}</p>
+          <p className="text-xs text-muted mt-1">
+            {active === null ? "…" : totalMembers.toLocaleString()} members · {totalChildren.toLocaleString()} children
+          </p>
+        </div>
+        <StatTile label="Total members" value={active === null ? "…" : totalMembers.toLocaleString()} />
         <StatTile label="Active" value={active === null ? "…" : active.length.toLocaleString()} />
         <StatTile label="Inactive" value={inactive.length.toLocaleString()} />
       </div>
@@ -219,141 +256,147 @@ export default function MembersPage() {
       )}
 
       <div className="card p-6">
-        <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-          <h2 className="font-semibold text-foreground">Add a member</h2>
-        </div>
+        <h2 className="font-semibold text-foreground mb-4">Add a member</h2>
         <AddMemberForm onAdded={load} />
       </div>
 
       <MemberImport onImported={load} />
 
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between flex-wrap">
-        <input
-          type="search"
-          placeholder="Search by name, phone, or email…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="input sm:max-w-xs"
-        />
-        <div className="flex items-center gap-3 flex-wrap">
-          <label className="flex items-center gap-2 text-sm text-muted">
-            Department
-            <select
-              value={departmentFilter}
-              onChange={(e) => setDepartmentFilter(e.target.value)}
-              className="input !w-auto py-1.5"
-            >
-              <option value="">All departments</option>
-              {DEPARTMENTS.map((dept) => (
-                <option key={dept} value={dept}>
-                  {dept}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-sm text-muted">
-            Sort by
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortKey)} className="input !w-auto py-1.5">
-              {Object.entries(SORT_LABELS).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
+      <div className="card overflow-hidden">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between flex-wrap p-5 border-b border-border">
+          <input
+            type="search"
+            placeholder="Search by name, phone, or email…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="input sm:max-w-xs"
+          />
+          <div className="flex items-center gap-3 flex-wrap">
+            <label className="flex items-center gap-2 text-sm text-muted">
+              Department
+              <select
+                value={departmentFilter}
+                onChange={(e) => setDepartmentFilter(e.target.value)}
+                className="input !w-auto py-1.5"
+              >
+                <option value="">All departments</option>
+                {DEPARTMENTS.map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-muted">
+              Sort by
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortKey)} className="input !w-auto py-1.5">
+                {Object.entries(SORT_LABELS).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         </div>
-      </div>
 
-      <div className="card divide-y divide-border">
-        {filteredSortedRows === null && <p className="p-5 text-sm text-muted">Loading…</p>}
-        {filteredSortedRows?.length === 0 && <p className="p-5 text-sm text-muted">{emptyMessage}</p>}
-        {filteredSortedRows?.map((row) =>
-          row.kind === "member" ? (
-            <div
-              key={`m-${row.member.id}`}
-              className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-primary-soft/40 transition-colors"
-            >
-              <Link href={`/admin/members/${row.member.id}`} className="min-w-0 flex-1">
-                <p className="font-medium text-foreground truncate">{row.member.name}</p>
-                <p className="text-xs text-muted truncate">
-                  {row.member.phone || row.member.email || "No contact info"}
-                  {row.member.gender ? ` · ${row.member.gender}` : ""}
-                  {row.member.department ? ` · ${row.member.department}` : ""}
-                </p>
-              </Link>
-              <div className="flex items-center gap-2 shrink-0">
-                {row.member.phone && (
-                  <>
-                    <a
-                      href={telHref(row.member.phone)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="btn btn-secondary !px-2.5 !py-1.5 text-xs"
-                      title={`Call ${row.member.name}`}
-                    >
-                      📞
-                    </a>
-                    <a
-                      href={whatsappHref(row.member.phone)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="btn btn-secondary !px-2.5 !py-1.5 text-xs"
-                      title={`WhatsApp ${row.member.name}`}
-                    >
-                      💬
-                    </a>
-                  </>
-                )}
-                <Link href={`/admin/members/${row.member.id}`} className="text-xs font-semibold text-primary whitespace-nowrap">
-                  View →
+        <div className="divide-y divide-border">
+          {filteredSortedRows === null && <p className="p-5 text-sm text-muted">Loading…</p>}
+          {filteredSortedRows?.length === 0 && <p className="p-5 text-sm text-muted">{emptyMessage}</p>}
+          {filteredSortedRows?.map((row) =>
+            row.kind === "member" ? (
+              <div
+                key={`m-${row.member.id}`}
+                className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-primary-soft/40 transition-colors"
+              >
+                <Link href={`/admin/members/${row.member.id}`} className="min-w-0 flex-1 flex items-center gap-3">
+                  <Avatar name={row.member.name} kind="member" />
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground truncate">{row.member.name}</p>
+                    <p className="text-xs text-muted truncate">
+                      {row.member.phone || row.member.email || "No contact info"}
+                      {row.member.gender ? ` · ${row.member.gender}` : ""}
+                      {row.member.department ? ` · ${row.member.department}` : ""}
+                    </p>
+                  </div>
                 </Link>
+                <div className="flex items-center gap-2 shrink-0">
+                  {row.member.phone && (
+                    <>
+                      <a
+                        href={telHref(row.member.phone)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="btn btn-secondary !px-2.5 !py-1.5 text-xs"
+                        title={`Call ${row.member.name}`}
+                      >
+                        📞
+                      </a>
+                      <a
+                        href={whatsappHref(row.member.phone)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="btn btn-secondary !px-2.5 !py-1.5 text-xs"
+                        title={`WhatsApp ${row.member.name}`}
+                      >
+                        💬
+                      </a>
+                    </>
+                  )}
+                  <Link href={`/admin/members/${row.member.id}`} className="text-xs font-semibold text-primary whitespace-nowrap">
+                    View →
+                  </Link>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div
-              key={`c-${row.child.id}`}
-              className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-primary-soft/40 transition-colors"
-            >
-              <Link href={`/admin/members/${row.child.parentMemberId}`} className="min-w-0 flex-1">
-                <p className="font-medium text-foreground truncate">
-                  {row.child.name} <span className="badge badge-muted">Child</span>
-                </p>
-                <p className="text-xs text-muted truncate">
-                  Child of {row.child.parentName || "unknown parent"}
-                  {row.child.gender ? ` · ${row.child.gender}` : ""}
-                  {row.child.department ? ` · ${row.child.department}` : ""}
-                </p>
-              </Link>
-              <div className="flex items-center gap-2 shrink-0">
-                {row.child.parentPhone && (
-                  <>
-                    <a
-                      href={telHref(row.child.parentPhone)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="btn btn-secondary !px-2.5 !py-1.5 text-xs"
-                      title={`Call ${row.child.parentName || "parent"}`}
-                    >
-                      📞
-                    </a>
-                    <a
-                      href={whatsappHref(row.child.parentPhone)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="btn btn-secondary !px-2.5 !py-1.5 text-xs"
-                      title={`WhatsApp ${row.child.parentName || "parent"}`}
-                    >
-                      💬
-                    </a>
-                  </>
-                )}
-                <Link href={`/admin/members/${row.child.parentMemberId}`} className="text-xs font-semibold text-primary whitespace-nowrap">
-                  View parent →
+            ) : (
+              <div
+                key={`c-${row.child.id}`}
+                className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-primary-soft/40 transition-colors"
+              >
+                <Link href={`/admin/members/${row.child.parentMemberId}`} className="min-w-0 flex-1 flex items-center gap-3">
+                  <Avatar name={row.child.name} kind="child" />
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground truncate">
+                      {row.child.name} <span className="badge badge-muted">Child</span>
+                    </p>
+                    <p className="text-xs text-muted truncate">
+                      Child of {row.child.parentName || "unknown parent"}
+                      {row.child.gender ? ` · ${row.child.gender}` : ""}
+                      {row.child.department ? ` · ${row.child.department}` : ""}
+                    </p>
+                  </div>
                 </Link>
+                <div className="flex items-center gap-2 shrink-0">
+                  {row.child.parentPhone && (
+                    <>
+                      <a
+                        href={telHref(row.child.parentPhone)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="btn btn-secondary !px-2.5 !py-1.5 text-xs"
+                        title={`Call ${row.child.parentName || "parent"}`}
+                      >
+                        📞
+                      </a>
+                      <a
+                        href={whatsappHref(row.child.parentPhone)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="btn btn-secondary !px-2.5 !py-1.5 text-xs"
+                        title={`WhatsApp ${row.child.parentName || "parent"}`}
+                      >
+                        💬
+                      </a>
+                    </>
+                  )}
+                  <Link href={`/admin/members/${row.child.parentMemberId}`} className="text-xs font-semibold text-primary whitespace-nowrap">
+                    View parent →
+                  </Link>
+                </div>
               </div>
-            </div>
-          )
-        )}
+            )
+          )}
+        </div>
       </div>
 
       {(inactive.length > 0 || inactiveChildren.length > 0) && (
@@ -366,7 +409,12 @@ export default function MembersPage() {
           </summary>
           <div className="flex flex-col divide-y divide-border mt-3">
             {inactive.map((m) => (
-              <Link key={`m-${m.id}`} href={`/admin/members/${m.id}`} className="py-2 text-sm text-muted hover:text-foreground">
+              <Link
+                key={`m-${m.id}`}
+                href={`/admin/members/${m.id}`}
+                className="py-2 flex items-center gap-3 text-sm text-muted hover:text-foreground"
+              >
+                <Avatar name={m.name} kind="member" />
                 {m.name}
               </Link>
             ))}
@@ -374,8 +422,9 @@ export default function MembersPage() {
               <Link
                 key={`c-${c.id}`}
                 href={`/admin/members/${c.parentMemberId}`}
-                className="py-2 text-sm text-muted hover:text-foreground"
+                className="py-2 flex items-center gap-3 text-sm text-muted hover:text-foreground"
               >
+                <Avatar name={c.name} kind="child" />
                 {c.name} <span className="text-xs">· Child of {c.parentName || "unknown parent"}</span>
               </Link>
             ))}
