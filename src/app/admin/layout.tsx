@@ -19,6 +19,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/admin/analytics", label: "Analytics" },
   { href: "/scan", label: "Scan / Check-in" },
   { href: "/admin/venue-qr", label: "Venue QR" },
+  { href: "/admin/billing", label: "Billing", adminOnly: true },
   { href: "/admin/settings", label: "Settings", adminOnly: true },
 ];
 
