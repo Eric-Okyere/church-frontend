@@ -16,6 +16,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Set only when login fails because the account hasn't verified its
   // email yet (see routes/auth.js) — lets the person finish verifying
@@ -175,15 +176,25 @@ function LoginForm() {
             Forgot password?
           </Link>
         </div>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          className="input"
-          placeholder="••••••••"
-        />
+        <div className="relative">
+          <input
+            id="password"
+            name="password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            required
+            className="input pr-14"
+            placeholder="••••••••"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            tabIndex={-1}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-muted hover:text-foreground"
+          >
+            {showPassword ? "Hide" : "Show"}
+          </button>
+        </div>
       </div>
       <button type="submit" disabled={pending} className="btn btn-primary w-full mt-2">
         {pending ? "Signing in…" : "Sign in"}
