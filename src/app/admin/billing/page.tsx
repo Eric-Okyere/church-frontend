@@ -95,9 +95,18 @@ function BillingContent() {
     setPayError(null);
     try {
       const res = await api.post<{ authorizationUrl: string }>("/api/billing/checkout");
+      // A missing/empty link here would otherwise send the browser to
+      // "undefined" with no visible error — assigning that to
+      // window.location.href looks exactly like the button doing nothing.
+      // Surface it as a real error instead of a silent no-op.
+      if (!res.authorizationUrl) {
+        throw new Error("Paystack didn't return a checkout link — try again in a moment.");
+      }
       window.location.href = res.authorizationUrl;
     } catch (err) {
-      setPayError(err instanceof ApiError ? err.message : "Couldn't start checkout — try again.");
+      setPayError(
+        err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Couldn't start checkout — try again."
+      );
       setPaying(false);
     }
   }
