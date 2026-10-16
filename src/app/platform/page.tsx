@@ -18,6 +18,7 @@ type Church = {
   memberCount: number;
   adminName: string | null;
   adminUsername: string | null;
+  adminEmail: string | null;
   paymentStatus: PaymentStatus;
   paymentNote: string | null;
   paymentUpdatedAt: string | null;
@@ -61,7 +62,8 @@ export default function PlatformDashboard() {
         c.name.toLowerCase().includes(q) ||
         c.slug.toLowerCase().includes(q) ||
         (c.adminName || "").toLowerCase().includes(q) ||
-        (c.adminUsername || "").toLowerCase().includes(q)
+        (c.adminUsername || "").toLowerCase().includes(q) ||
+        (c.adminEmail || "").toLowerCase().includes(q)
       );
     });
   }, [churches, query, paymentFilter]);
@@ -110,11 +112,11 @@ export default function PlatformDashboard() {
       </div>
 
       <div className="card p-6">
-        <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <h2 className="font-semibold text-foreground">Churches</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <select
-              className="input w-auto"
+              className="input w-full sm:w-auto"
               value={paymentFilter}
               onChange={(e) => setPaymentFilter(e.target.value as "all" | PaymentStatus)}
             >
@@ -123,8 +125,8 @@ export default function PlatformDashboard() {
               <option value="unpaid">Unpaid only</option>
             </select>
             <input
-              className="input max-w-[220px]"
-              placeholder="Search name, slug, admin…"
+              className="input w-full sm:max-w-[220px]"
+              placeholder="Search name, slug, admin, email…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -203,6 +205,12 @@ function ChurchRow({
                 {church.adminUsername && ` (${church.adminUsername})`}
               </>
             )}
+            {church.adminEmail && (
+              <>
+                {" · "}
+                {church.adminEmail}
+              </>
+            )}
             {" · registered "}
             {formatDate(church.createdAt)}
             {church.phone && (
@@ -214,7 +222,7 @@ function ChurchRow({
           </p>
           {church.paymentNote && !editing && <p className="text-xs text-muted mt-0.5">Note: {church.paymentNote}</p>}
         </div>
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto sm:shrink-0">
           {church.phone && !editing && (
             <>
               <a
@@ -235,8 +243,9 @@ function ChurchRow({
               </a>
             </>
           )}
-          <p className="text-sm text-foreground font-medium">{church.memberCount}</p>
-          <p className="text-xs text-muted">members</p>
+          <p className="text-sm text-foreground font-medium whitespace-nowrap">
+            {church.memberCount} <span className="text-xs text-muted font-normal">members</span>
+          </p>
           {!editing && (
             <button onClick={onEdit} className="btn btn-secondary !px-2.5 !py-1.5 text-xs whitespace-nowrap">
               Update payment

@@ -17,6 +17,15 @@ export type AuthUser = {
   // existed before this field was added has none yet — null until they add
   // one from /admin/settings.
   email?: string | null;
+  // True once this church's one-week free trial has passed with no
+  // active paid period covering today (see middleware/billingAccess.js).
+  // Checking it here (rather than only on /admin/billing) is what lets
+  // AdminLayout show a persistent banner on every page — the backend
+  // itself still blocks any actual write regardless of whether the
+  // frontend remembers to check this first. Always false for a platform
+  // admin, who has no church/subscription at all.
+  billingRestricted?: boolean;
+  trialEndsAt?: string | null;
 };
 
 export type SignupInput = {

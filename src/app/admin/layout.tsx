@@ -93,6 +93,19 @@ function AdminShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
       </header>
+      {user?.billingRestricted && pathname !== "/admin/billing" && (
+        <div className="bg-warning-soft border-b border-border px-4 sm:px-6 py-2.5">
+          <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 flex-wrap text-sm">
+            <span className="text-foreground">
+              Your one-week free trial has ended — you can still view your existing data, but checking someone in,
+              adding a member, and other changes are paused until you pay.
+            </span>
+            <Link href="/admin/billing" className="btn btn-primary !py-1 !px-3 text-xs whitespace-nowrap">
+              Pay now
+            </Link>
+          </div>
+        </div>
+      )}
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8">{children}</main>
     </div>
   );
